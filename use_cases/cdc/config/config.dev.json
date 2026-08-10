@@ -1,0 +1,11 @@
+{
+  "EXECUTION_ENVIRONMENT": "databricks",
+  "SPARK_APP_NAME": "customers-dev",
+  "environments": {
+    "dev": {
+      "env": "dev",
+      "env_short": "d",
+      "catalogs": { "bronze": "bronze", "silver": "silver", "gold": "gold" }
+    }
+  }
+}

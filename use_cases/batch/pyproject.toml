@@ -1,0 +1,11 @@
+[project]
+name = "retail_sales"
+version = "0.1.0"
+description = "Caso de uso batch — dominio retail_sales"
+dependencies = [
+  # Fijar tag/commit concreto, ver platform/dkops_version.txt
+  "dkops @ git+https://github.com/brrsanchezfi/DKOps.git@<tag>",
+]
+
+[project.optional-dependencies]
+local = ["pyspark>=3.5", "delta-spark>=3.2", "pytest"]

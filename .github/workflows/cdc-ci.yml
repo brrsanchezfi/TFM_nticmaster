@@ -1,0 +1,10 @@
+name: cdc-ci
+on:
+  pull_request:
+    paths: ["use_cases/cdc/**"]
+jobs:
+  test-and-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "TODO: pip install -e .[local] && pytest && databricks bundle validate"

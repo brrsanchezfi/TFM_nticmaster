@@ -1,0 +1,19 @@
+{
+  "EXECUTION_ENVIRONMENT": "local",
+  "SPARK_APP_NAME": "customers-local",
+  "environments": {
+    "local": {
+      "env": "local",
+      "env_short": "l",
+      "catalogs": { "bronze": "bronze", "silver": "silver", "gold": "gold" },
+      "paths": {
+        "landing": "/tmp/customers/landing",
+        "bronze": "/tmp/customers/bronze",
+        "silver": "/tmp/customers/silver",
+        "gold": "/tmp/customers/gold",
+        "checkpoint": "/tmp/customers/checkpoints",
+        "ops": "/tmp/customers/ops"
+      }
+    }
+  }
+}

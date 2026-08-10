@@ -1,0 +1,19 @@
+{
+  "EXECUTION_ENVIRONMENT": "local",
+  "SPARK_APP_NAME": "retail_sales-local",
+  "environments": {
+    "local": {
+      "env": "local",
+      "env_short": "l",
+      "catalogs": { "bronze": "bronze", "silver": "silver", "gold": "gold" },
+      "paths": {
+        "landing": "/tmp/retail_sales/landing",
+        "bronze": "/tmp/retail_sales/bronze",
+        "silver": "/tmp/retail_sales/silver",
+        "gold": "/tmp/retail_sales/gold",
+        "checkpoint": "/tmp/retail_sales/checkpoints",
+        "ops": "/tmp/retail_sales/ops"
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "EXECUTION_ENVIRONMENT": "local",
+  "SPARK_APP_NAME": "orders-local",
+  "environments": {
+    "local": {
+      "env": "local",
+      "env_short": "l",
+      "catalogs": { "bronze": "bronze", "silver": "silver", "gold": "gold" },
+      "paths": {
+        "landing": "/tmp/orders/landing",
+        "bronze": "/tmp/orders/bronze",
+        "silver": "/tmp/orders/silver",
+        "gold": "/tmp/orders/gold",
+        "checkpoint": "/tmp/orders/checkpoints",
+        "ops": "/tmp/orders/ops"
+      }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+resources:
+  jobs:
+    weather_events_pipeline:
+      name: "streaming_weather_events_pipeline"
+      tasks:
+        - task_key: ingest_bronze
+          python_wheel_task:
+            entry_point: main
+            package_name: weather_events
+        - task_key: promote_silver
+          depends_on:
+            - task_key: ingest_bronze
+          python_wheel_task:
+            entry_point: main
+            package_name: weather_events
+        - task_key: build_gold
+          depends_on:
+            - task_key: promote_silver
+          python_wheel_task:
+            entry_point: main
+            package_name: weather_events
