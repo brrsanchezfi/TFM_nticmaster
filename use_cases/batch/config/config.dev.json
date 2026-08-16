@@ -5,7 +5,7 @@
     "dev": {
       "env": "dev",
       "env_short": "d",
-      "catalogs": { "bronze": "bronze", "silver": "silver", "gold": "gold" }
+      "catalogs": { "bronze": "bronze_tfm", "silver": "silver_tfm", "gold": "gold_tfm" }
     }
   }
 }
