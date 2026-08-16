@@ -1,0 +1,21 @@
+resources:
+  jobs:
+    customers_pipeline:
+      name: "cdc_customers_pipeline"
+      tasks:
+        - task_key: ingest_bronze
+          python_wheel_task:
+            entry_point: main
+            package_name: customers
+        - task_key: promote_silver
+          depends_on:
+            - task_key: ingest_bronze
+          python_wheel_task:
+            entry_point: main
+            package_name: customers
+        - task_key: build_gold
+          depends_on:
+            - task_key: promote_silver
+          python_wheel_task:
+            entry_point: main
+            package_name: customers

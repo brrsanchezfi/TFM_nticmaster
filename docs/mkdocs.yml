@@ -1,0 +1,19 @@
+site_name: TFM NTIC Master - PoC Databricks
+nav:
+  - Inicio: index.md
+  - Arquitectura:
+      - Global: arquitectura/global.md
+      - Lakehouse: arquitectura/lakehouse.md
+      - Unity Catalog: arquitectura/unity-catalog.md
+  - Casos de uso:
+      - Batch: casos_uso/batch.md
+      - Streaming: casos_uso/streaming.md
+      - CDC: casos_uso/cdc.md
+      - CDF: casos_uso/cdf.md
+  - Stack (incl. DKOps): stack.md
+  - Infraestructura: infraestructura.md
+  - Costes: costes.md
+  - CI/CD: ci-cd.md
+  - Conclusiones: conclusiones.md
+theme:
+  name: material

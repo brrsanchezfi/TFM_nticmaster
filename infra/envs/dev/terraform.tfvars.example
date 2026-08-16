@@ -1,0 +1,30 @@
+# Copiar a terraform.tfvars y ajustar. terraform.tfvars esta en .gitignore.
+
+subscription_id = "e348dcd6-db13-458b-a54e-df73a0925a1d"
+
+# Los demas valores de Azure ya vienen con default correcto en variables.tf:
+#   resource_group_name       = "rg-demo-eastus2"
+#   databricks_workspace_name = "lakehousedkops"
+#   storage_account_name      = "lakehousedkops"
+
+# Aislamiento del TFM frente a los catalogos del equipo (bronze_dkops, etc.)
+catalog_suffix = "tfm"
+
+# ---------------------------------------------------------------------------
+# Caso de uso CDC
+#
+# Dejar en false mientras Microsoft.Sql siga NotRegistered en la suscripcion.
+# Comprobar con:
+#     az provider show -n Microsoft.Sql --query registrationState -o tsv
+# Registrar (requiere permisos de suscripcion, no basta Contributor de RG):
+#     az provider register --namespace Microsoft.Sql
+# ---------------------------------------------------------------------------
+enable_cdc_sql = false
+
+# Obtener con: az ad signed-in-user show --query id -o tsv
+# sql_entra_admin_object_id = "00000000-0000-0000-0000-000000000000"
+
+# Obtener con: curl -s https://api.ipify.org
+# sql_allowed_ips = {
+#   "casa" = "203.0.113.10"
+# }

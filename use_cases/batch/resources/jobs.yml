@@ -1,0 +1,21 @@
+resources:
+  jobs:
+    retail_sales_pipeline:
+      name: "batch_retail_sales_pipeline"
+      tasks:
+        - task_key: ingest_bronze
+          python_wheel_task:
+            entry_point: main
+            package_name: retail_sales
+        - task_key: promote_silver
+          depends_on:
+            - task_key: ingest_bronze
+          python_wheel_task:
+            entry_point: main
+            package_name: retail_sales
+        - task_key: build_gold
+          depends_on:
+            - task_key: promote_silver
+          python_wheel_task:
+            entry_point: main
+            package_name: retail_sales

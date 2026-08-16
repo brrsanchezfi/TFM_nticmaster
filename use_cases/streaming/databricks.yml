@@ -1,0 +1,12 @@
+bundle:
+  name: tfm_streaming_weather_events
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: ${var.databricks_host}

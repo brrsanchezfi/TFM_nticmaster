@@ -1,0 +1,3 @@
+# Versión/tag de DKOps usada en todos los casos de uso.
+# Fijar un tag o commit concreto, no "main", para reproducibilidad.
+# Ejemplo: git+https://github.com/brrsanchezfi/DKOps.git@v0.3.0

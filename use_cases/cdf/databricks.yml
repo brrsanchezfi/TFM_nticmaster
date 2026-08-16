@@ -1,0 +1,12 @@
+bundle:
+  name: tfm_cdf_orders
+
+include:
+  - resources/*.yml
+
+targets:
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: ${var.databricks_host}

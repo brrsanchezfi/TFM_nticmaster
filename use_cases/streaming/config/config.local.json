@@ -1,0 +1,19 @@
+{
+  "EXECUTION_ENVIRONMENT": "local",
+  "SPARK_APP_NAME": "weather_events-local",
+  "environments": {
+    "local": {
+      "env": "local",
+      "env_short": "l",
+      "catalogs": { "bronze": "bronze", "silver": "silver", "gold": "gold" },
+      "paths": {
+        "landing": "/tmp/weather_events/landing",
+        "bronze": "/tmp/weather_events/bronze",
+        "silver": "/tmp/weather_events/silver",
+        "gold": "/tmp/weather_events/gold",
+        "checkpoint": "/tmp/weather_events/checkpoints",
+        "ops": "/tmp/weather_events/ops"
+      }
+    }
+  }
+}
