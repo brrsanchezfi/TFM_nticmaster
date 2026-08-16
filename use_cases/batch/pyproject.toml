@@ -1,11 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "retail_sales"
 version = "0.1.0"
 description = "Caso de uso batch — dominio retail_sales"
+requires-python = ">=3.10"
+
+# En Databricks pyspark lo aporta el runtime del cluster, por eso DKOps se
+# instala sin extras: su única dependencia real es loguru.
+# Versión fijada en platform/dkops_version.txt.
 dependencies = [
-  # Fijar tag/commit concreto, ver platform/dkops_version.txt
-  "dkops @ git+https://github.com/brrsanchezfi/DKOps.git@<tag>",
+  "dkops @ git+https://github.com/brrsanchezfi/DKOps.git@v0.3.0",
 ]
 
 [project.optional-dependencies]
-local = ["pyspark>=3.5", "delta-spark>=3.2", "pytest"]
+# Desarrollo y tests offline. El extra [local] de DKOps ya trae pyspark 3.5.3
+# y delta-spark 3.2.0 con versiones exactas: no se repiten aquí para no
+# arriesgar un desajuste con las que la librería declara.
+local = [
+  "dkops[local] @ git+https://github.com/brrsanchezfi/DKOps.git@v0.3.0",
+  "pytest>=7.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

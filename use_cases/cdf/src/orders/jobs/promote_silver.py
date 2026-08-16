@@ -1,19 +1,12 @@
-"""Entrypoint invocado por el Databricks Job: Bronze -> Silver."""
-from dkops.launcher import Launcher
-from dkops.ingestion.engine import IngestionEngine
+"""Entrypoint del Databricks Job: Bronze -> Silver."""
+from orders.pipeline import DEFAULT_CONFIG, build_engine
 
 
-def main(config_path: str = "config/config.dev.json") -> None:
-    launcher = Launcher(config_path)
-    engine = IngestionEngine.from_spark(
-        spark=launcher.spark,
-        env=launcher.env,
-        bronze_contracts_dir="contracts/ingestion/bronze",
-        silver_contracts_dir="contracts/ingestion/silver",
-        tables_base_dir="contracts/tables",
-        ops_path="/tmp/orders/ops",
-    )
-    engine.promote_silver()
+def main(config_path: str = DEFAULT_CONFIG) -> None:
+    _, engine = build_engine(config_path)
+    failed = engine.promote_silver()
+    if failed:
+        raise RuntimeError(f"Promoción a Silver fallida en: {failed}")
 
 
 if __name__ == "__main__":

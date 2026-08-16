@@ -1,19 +1,15 @@
-"""Entrypoint invocado por el Databricks Job: Landing -> Bronze."""
-from dkops.launcher import Launcher
-from dkops.ingestion.engine import IngestionEngine
+"""Entrypoint del Databricks Job: Landing -> Bronze (streaming).
+
+Usa Auto Loader con trigger ``availableNow``: procesa todo lo pendiente en la
+landing zone y termina, de modo que el job se comporta como una ejecución
+acotada y no como un stream perpetuo. Así el cluster se apaga al acabar.
+"""
+from weather_events.pipeline import DEFAULT_CONFIG, build_engine
 
 
-def main(config_path: str = "config/config.dev.json") -> None:
-    launcher = Launcher(config_path)
-    engine = IngestionEngine.from_spark(
-        spark=launcher.spark,
-        env=launcher.env,
-        bronze_contracts_dir="contracts/ingestion/bronze",
-        silver_contracts_dir="contracts/ingestion/silver",
-        tables_base_dir="contracts/tables",
-        ops_path="/tmp/weather_events/ops",
-    )
-    engine.ingest_bronze()
+def main(config_path: str = DEFAULT_CONFIG) -> None:
+    _, engine = build_engine(config_path)
+    engine.run_streaming()
 
 
 if __name__ == "__main__":
