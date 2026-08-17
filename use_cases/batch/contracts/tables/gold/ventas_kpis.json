@@ -1,0 +1,24 @@
+{
+  "catalog": "{catalog.gold}",
+  "schema": "batch",
+  "name": "ventas_kpis",
+  "type": "MANAGED",
+  "format": "DELTA",
+  "comment": "KPIs diarios de venta por categoría y canal. Tabla de consumo: se reconstruye entera en cada ejecución porque el volumen de la PoC lo permite.",
+
+  "columns": [
+    { "name": "fecha",         "type": "DATE",    "nullable": false, "comment": "Día de la venta, ya convertido a tipo fecha." },
+    { "name": "categoria",     "type": "STRING",  "nullable": false, "comment": "Categoría del producto." },
+    { "name": "canal",         "type": "STRING",  "nullable": false, "comment": "Canal de venta: online o tienda." },
+    { "name": "num_ventas",    "type": "LONG",    "comment": "Número de líneas de venta." },
+    { "name": "unidades",      "type": "LONG",    "comment": "Unidades totales vendidas." },
+    { "name": "importe_total", "type": "DOUBLE",  "comment": "Facturación total en euros." },
+    { "name": "ticket_medio",  "type": "DOUBLE",  "comment": "Importe medio por línea de venta." },
+    { "name": "_generated_at", "type": "TIMESTAMP", "comment": "Momento en que se calculó el agregado." }
+  ],
+
+  "properties": {
+    "delta.autoOptimize.optimizeWrite": "true",
+    "proyecto": "TFM-NTIC-Master"
+  }
+}

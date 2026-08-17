@@ -46,3 +46,16 @@
   - La raíz del bundle se pasa por `--bundle-root ${workspace.file_path}`: el
     wheel se instala en site-packages y no puede deducirla desde `__file__`.
   - `databricks bundle validate -t dev` correcto en los cuatro bundles.
+- Fase 5 — Caso de uso Batch (retail_sales):
+  - Generador de ventas sintéticas reproducible por semilla, que emite a
+    propósito un 5% de ventas repetidas para que la estrategia `full_merge`
+    tenga algo que resolver.
+  - Cinco contratos: tablas Bronze/Silver/Gold y las dos ingestas.
+  - Bronze particionado por `_ingested_date`, que es lo que permite a DKOps
+    hacer *partition overwrite* y que la ingesta sea idempotente.
+  - `compute_kpis()` separada de `build()` para poder testear la lógica de
+    negocio sin Databricks ni Unity Catalog.
+  - El log de operaciones pasa a ADLS: en `/tmp` se perdía al apagarse el
+    job cluster.
+  - 10 tests en verde, incluidos los que levantan Spark local.
+  - Documentado en `docs/casos_uso/batch.md`.

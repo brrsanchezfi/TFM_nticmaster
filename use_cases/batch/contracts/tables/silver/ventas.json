@@ -1,0 +1,33 @@
+{
+  "catalog": "{catalog.silver}",
+  "schema": "batch",
+  "name": "ventas",
+  "type": "MANAGED",
+  "format": "DELTA",
+  "comment": "Ventas retail curadas y deduplicadas por venta_id. Una fila por venta, siempre la última versión conocida.",
+
+  "columns": [
+    { "name": "venta_id",        "type": "STRING",  "nullable": false, "comment": "Identificador único de la venta. Clave del merge." },
+    { "name": "fecha",           "type": "STRING",  "comment": "Fecha de la venta en ISO-8601." },
+    { "name": "cliente_id",      "type": "STRING",  "comment": "Identificador del cliente." },
+    { "name": "producto_id",     "type": "STRING",  "comment": "Identificador del producto." },
+    { "name": "producto",        "type": "STRING",  "comment": "Nombre comercial del producto." },
+    { "name": "categoria",       "type": "STRING",  "comment": "Categoría del producto." },
+    { "name": "canal",           "type": "STRING",  "comment": "Canal de venta: online o tienda." },
+    { "name": "ciudad",          "type": "STRING",  "comment": "Ciudad donde se registra la venta." },
+    { "name": "cantidad",        "type": "INTEGER", "comment": "Unidades vendidas." },
+    { "name": "precio_unitario", "type": "DOUBLE",  "comment": "Precio por unidad en euros." },
+    { "name": "importe",         "type": "DOUBLE",  "comment": "Importe total de la línea." },
+
+    { "name": "_ingested_at",       "type": "TIMESTAMP", "comment": "Momento de la ingesta en Bronze. Se arrastra para trazabilidad." },
+    { "name": "_ingested_date",     "type": "DATE",      "comment": "Día de la ingesta en Bronze." },
+    { "name": "_source_file",       "type": "STRING",    "comment": "Fichero de origen." },
+    { "name": "_silver_created_at",  "type": "TIMESTAMP", "comment": "Primera vez que la fila llegó a Silver." },
+    { "name": "_silver_modified_at", "type": "TIMESTAMP", "comment": "Última actualización de la fila en Silver." }
+  ],
+
+  "properties": {
+    "delta.autoOptimize.optimizeWrite": "true",
+    "proyecto": "TFM-NTIC-Master"
+  }
+}
