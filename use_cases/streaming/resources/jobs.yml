@@ -1,21 +1,67 @@
 resources:
   jobs:
     weather_events_pipeline:
-      name: "streaming_weather_events_pipeline"
+      name: "[${bundle.target}] streaming_weather_events_pipeline"
+
+      # Un único job cluster compartido por las tres tareas: se levanta una vez
+      # y se apaga al terminar la última, en vez de pagar tres arranques.
+      job_clusters:
+        - job_cluster_key: pipeline_cluster
+          new_cluster:
+            spark_version: ${var.spark_version}
+            node_type_id: ${var.node_type_id}
+            # Single node: el volumen de la PoC no justifica workers, y así
+            # solo se paga una VM. No se adjunta la policy "Job Compute"
+            # porque prohíbe spark.databricks.cluster.profile.
+            num_workers: 0
+            spark_conf:
+              spark.master: "local[*]"
+              spark.databricks.cluster.profile: singleNode
+            custom_tags:
+              ResourceClass: SingleNode
+              proyecto: TFM-NTIC-Master
+            # Requerido para usar Unity Catalog desde un wheel task.
+            data_security_mode: SINGLE_USER
+            azure_attributes:
+              availability: SPOT_WITH_FALLBACK_AZURE
+              first_on_demand: 0
+
       tasks:
         - task_key: ingest_bronze
+          job_cluster_key: pipeline_cluster
           python_wheel_task:
-            entry_point: main
             package_name: weather_events
+            entry_point: ingest_bronze
+            named_parameters:
+              # El wheel vive en site-packages: la raíz del bundle (config/ y
+              # contracts/) hay que pasarla explícitamente.
+              bundle-root: ${workspace.file_path}
+              config: config/config.dev.json
+          libraries:
+            - whl: ../dist/*.whl
+
         - task_key: promote_silver
           depends_on:
             - task_key: ingest_bronze
+          job_cluster_key: pipeline_cluster
           python_wheel_task:
-            entry_point: main
             package_name: weather_events
+            entry_point: promote_silver
+            named_parameters:
+              bundle-root: ${workspace.file_path}
+              config: config/config.dev.json
+          libraries:
+            - whl: ../dist/*.whl
+
         - task_key: build_gold
           depends_on:
             - task_key: promote_silver
+          job_cluster_key: pipeline_cluster
           python_wheel_task:
-            entry_point: main
             package_name: weather_events
+            entry_point: build_gold
+            named_parameters:
+              bundle-root: ${workspace.file_path}
+              config: config/config.dev.json
+          libraries:
+            - whl: ../dist/*.whl

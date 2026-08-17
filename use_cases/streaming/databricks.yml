@@ -4,9 +4,26 @@ bundle:
 include:
   - resources/*.yml
 
+# El wheel se construye en local y se sube al desplegar.
+artifacts:
+  weather_events:
+    type: whl
+    build: python -m build --wheel
+    path: .
+
+variables:
+  # 16.4 LTS lleva Spark 3.5.2, la versión más próxima al pyspark 3.5.3 que
+  # DKOps fija. Los LTS más nuevos (17.3, 18) van con Spark 4.x.
+  spark_version:
+    description: Runtime de Databricks para los job clusters.
+    default: "16.4.x-scala2.12"
+  node_type_id:
+    description: Tipo de VM del job cluster.
+    default: "Standard_D2ads_v6"
+
 targets:
   dev:
     mode: development
     default: true
     workspace:
-      host: ${var.databricks_host}
+      host: https://adb-7405612310572963.3.azuredatabricks.net
