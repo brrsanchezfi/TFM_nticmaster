@@ -1,9 +1,10 @@
 """Entrypoint del Databricks Job: Bronze -> Silver."""
-from retail_sales.pipeline import DEFAULT_CONFIG, build_engine
+from retail_sales.pipeline import build_engine, parse_args
 
 
-def main(config_path: str = DEFAULT_CONFIG) -> None:
-    _, engine = build_engine(config_path)
+def main() -> None:
+    args = parse_args()
+    _, engine = build_engine(args.config, args.bundle_root)
     failed = engine.promote_silver()
     if failed:
         raise RuntimeError(f"Promoción a Silver fallida en: {failed}")

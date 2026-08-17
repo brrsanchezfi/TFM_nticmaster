@@ -24,5 +24,12 @@ local = [
   "pytest>=7.0",
 ]
 
+# python_wheel_task invoca el job por su entry point, así que cada tarea del
+# workflow necesita el suyo. Sin esto el bundle no puede desplegarse.
+[project.scripts]
+ingest_bronze = "retail_sales.jobs.ingest_bronze:main"
+promote_silver = "retail_sales.jobs.promote_silver:main"
+build_gold = "retail_sales.jobs.build_gold:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]

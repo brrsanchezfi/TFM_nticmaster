@@ -7,15 +7,14 @@ dependencias.
 """
 from __future__ import annotations
 
+import argparse
+import os
 from pathlib import Path
 
 from DKOps.ingestion.contracts import IngestionContractLoader
 from DKOps.ingestion.engine import IngestionEngine
 from DKOps.ingestion.ops import IngestionOpsLogger
 from DKOps.launcher import Launcher
-
-# .../use_cases/cdc/src/customers/pipeline.py -> .../use_cases/cdc
-BUNDLE_ROOT = Path(__file__).resolve().parents[2]
 
 DEFAULT_CONFIG = "config/config.dev.json"
 OPS_PATH = "/tmp/customers/ops"
@@ -24,24 +23,41 @@ BRONZE_CONTRACTS = "contracts/ingestion/bronze"
 SILVER_CONTRACTS = "contracts/ingestion/silver"
 
 
-def _loader(contracts_dir: str, env) -> IngestionContractLoader:
-    return IngestionContractLoader(
-        contracts_dir=BUNDLE_ROOT / contracts_dir,
-        base_dir=BUNDLE_ROOT,
-        env=env,
-    )
+def resolve_bundle_root(bundle_root: str | None = None) -> Path:
+    """Localiza la raíz del bundle, donde viven config/ y contracts/.
+
+    El código se despliega como wheel, así que acaba en site-packages y no
+    puede deducir la raíz desde ``__file__``: el job la pasa explícitamente
+    (``${workspace.file_path}``). El resto de casos son para ejecución local.
+    """
+    if bundle_root:
+        return Path(bundle_root)
+    env = os.environ.get("BUNDLE_ROOT")
+    if env:
+        return Path(env)
+    # Ejecución desde el repo: .../use_cases/cdc/src/customers/pipeline.py
+    return Path(__file__).resolve().parents[2]
 
 
-def build_engine(config_path: str = DEFAULT_CONFIG) -> tuple[Launcher, IngestionEngine]:
+def build_engine(
+    config_path: str = DEFAULT_CONFIG,
+    bundle_root: str | None = None,
+) -> tuple[Launcher, IngestionEngine]:
     """Devuelve el Launcher (dueño de la SparkSession) y el engine ya cableado."""
-    launcher = Launcher(str(BUNDLE_ROOT / config_path))
+    root = resolve_bundle_root(bundle_root)
+    launcher = Launcher(str(root / config_path))
     env = launcher.env
 
-    bronze_loader = _loader(BRONZE_CONTRACTS, env)
+    def loader(contracts_dir: str) -> IngestionContractLoader:
+        return IngestionContractLoader(
+            contracts_dir=root / contracts_dir, base_dir=root, env=env
+        )
+
+    bronze_loader = loader(BRONZE_CONTRACTS)
     bronze_contracts = bronze_loader.load_all()
     bronze_tables = {c.name: bronze_loader.load_destination(c) for c in bronze_contracts}
 
-    silver_loader = _loader(SILVER_CONTRACTS, env)
+    silver_loader = loader(SILVER_CONTRACTS)
     silver_contracts = silver_loader.load_all()
     silver_tables = {c.name: silver_loader.load_destination(c) for c in silver_contracts}
 
@@ -64,3 +80,13 @@ def build_engine(config_path: str = DEFAULT_CONFIG) -> tuple[Launcher, Ingestion
         ops=IngestionOpsLogger(launcher.spark, ops_path=OPS_PATH, pipeline="customers"),
     )
     return launcher, engine
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """Argumentos comunes a todos los entrypoints del bundle."""
+    p = argparse.ArgumentParser()
+    p.add_argument("--bundle-root", default=None,
+                   help="Raíz del bundle desplegado (workspace.file_path).")
+    p.add_argument("--config", default=DEFAULT_CONFIG,
+                   help="Ruta del config.json, relativa a la raíz del bundle.")
+    return p.parse_known_args(argv)[0]

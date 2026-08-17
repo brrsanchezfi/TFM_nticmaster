@@ -1,9 +1,10 @@
 """Entrypoint del Databricks Job: Landing -> Bronze."""
-from customers.pipeline import DEFAULT_CONFIG, build_engine
+from customers.pipeline import build_engine, parse_args
 
 
-def main(config_path: str = DEFAULT_CONFIG) -> None:
-    _, engine = build_engine(config_path)
+def main() -> None:
+    args = parse_args()
+    _, engine = build_engine(args.config, args.bundle_root)
     failed = engine.ingest_bronze()
     if failed:
         raise RuntimeError(f"Ingesta a Bronze fallida en: {failed}")

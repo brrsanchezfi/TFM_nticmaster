@@ -28,3 +28,21 @@
   - Los `pyproject.toml` delegan en el extra `dkops[local]` en vez de repetir
     las versiones de pyspark/delta-spark.
   - Verificado: los 4 casos de uso importan y resuelven `build_engine`.
+- Fase 3 — Unity Catalog desplegado:
+  - Creados `bronze_tfm`, `silver_tfm` y `gold_tfm` con `storage_root` en la
+    carpeta `tfm/` del contenedor de su capa, más 12 schemas (uno por caso de
+    uso). Hecho por API, no con `terraform apply`: el state de `infra/` queda
+    vacío y habría que importar los recursos si se quisiera gestionar desde ahí.
+- Asset Bundles configurados contra el workspace real:
+  - Runtime `16.4.x-scala2.12` (Spark 3.5.2), el LTS más próximo al
+    `pyspark 3.5.3` que fija DKOps; los LTS más nuevos van con Spark 4.x.
+  - Job cluster single-node, spot con fallback y `data_security_mode`
+    `SINGLE_USER` (requisito de Unity Catalog para wheel tasks). No se adjunta
+    la policy "Job Compute" porque prohíbe `spark.databricks.cluster.profile`.
+  - Un único job cluster compartido por las tres tareas, en vez de tres
+    arranques.
+  - Añadidos los `[project.scripts]`: `python_wheel_task` necesita un entry
+    point por tarea; el scaffold declaraba `main` en las tres.
+  - La raíz del bundle se pasa por `--bundle-root ${workspace.file_path}`: el
+    wheel se instala en site-packages y no puede deducirla desde `__file__`.
+  - `databricks bundle validate -t dev` correcto en los cuatro bundles.
