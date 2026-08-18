@@ -1,0 +1,19 @@
+{
+  "catalog": "{catalog.gold}",
+  "schema": "cdf",
+  "name": "cdf_control",
+  "type": "MANAGED",
+  "format": "DELTA",
+  "comment": "Puntero de lectura del Change Data Feed: guarda hasta qué versión de la tabla origen se ha propagado ya. Es lo que convierte el proceso en incremental — sin este estado, cada ejecución tendría que releer el feed completo.",
+
+  "columns": [
+    { "name": "dataset",         "type": "STRING", "nullable": false, "comment": "Tabla origen cuyo feed se está consumiendo." },
+    { "name": "ultima_version",  "type": "LONG",   "comment": "Última versión de Delta ya procesada. La siguiente ejecución arranca en la posterior." },
+    { "name": "filas_procesadas","type": "LONG",   "comment": "Filas de cambio leídas en la última ejecución. Un 0 significa que no hubo cambios que propagar." },
+    { "name": "_actualizado_at", "type": "TIMESTAMP", "comment": "Momento en que se avanzó el puntero." }
+  ],
+
+  "properties": {
+    "proyecto": "TFM-NTIC-Master"
+  }
+}
