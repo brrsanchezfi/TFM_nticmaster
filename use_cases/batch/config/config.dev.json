@@ -1,9 +1,9 @@
 {
-  "EXECUTION_ENVIRONMENT": "databricks",
+  "EXECUTION_ENVIRONMENT": "local",
   "SPARK_APP_NAME": "retail_sales-dev",
   "LOG_DIR": "/tmp/retail_sales/logs",
   "environments": {
-    "dev": {
+    "7405612310572963": {
       "env": "dev",
       "env_short": "d",
       "catalogs": {

@@ -59,3 +59,24 @@
     job cluster.
   - 10 tests en verde, incluidos los que levantan Spark local.
   - Documentado en `docs/casos_uso/batch.md`.
+  - **Ejecutado end-to-end en Databricks**: 525 filas en Landing y Bronze,
+    500 en Silver (las 25 reemisiones colapsadas por `full_merge`) y 249
+    agregados en Gold. Es la primera vez que un dato recorre la cadena
+    completa Terraform → Unity Catalog → DKOps → Asset Bundle.
+  - Correcciones necesarias para que el despliegue y la ejecución funcionaran:
+    - `first_on_demand` pasa a 1: en single-node la única VM es el driver y
+      Azure exige que sea on-demand. En consecuencia, no hay ahorro por spot
+      en esta configuración.
+    - `EXECUTION_ENVIRONMENT` pasa a `local` en los 4 casos de uso: para DKOps
+      `databricks` significa Databricks Connect desde fuera y exige
+      `CLUSTER_ID`.
+    - Las claves de `environments` pasan a ser el `workspace_id`: es así como
+      DKOps resuelve el entorno cuando corre dentro de Databricks.
+    - El contrato de Silver deja de declarar `_silver_created_at`: la
+      estrategia `full_merge` no la genera, pese al nombre en plural del flag
+      `add_silver_timestamps`. Reportado como incidencia en DKOps.
+  - Creado el volumen externo `bronze_tfm.batch.landing`: el usuario no tiene
+    rol de datos sobre el storage, así que la subida de ficheros se gobierna
+    por Unity Catalog en lugar de por RBAC de Azure.
+  - Descartado el riesgo de egress: los job clusters sí alcanzan GitHub para
+    instalar DKOps desde el tag.

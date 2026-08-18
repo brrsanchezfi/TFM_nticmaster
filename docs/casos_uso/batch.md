@@ -70,6 +70,57 @@ Silver y registro de operaciones— lo resuelve DKOps.
 El único código de fontanería es `pipeline.py`, que carga los contratos y
 construye el `IngestionEngine`.
 
+## Cómo llegan los datos a la landing
+
+El usuario que desarrolla el TFM **no tiene rol de datos sobre la cuenta de
+almacenamiento**: el acceso al lake se hace con la identidad gestionada del
+access connector de Unity Catalog, no con la identidad personal. Intentar
+subir ficheros con `az storage` falla por permisos.
+
+La vía correcta es un **volumen externo** de Unity Catalog:
+
+    bronze_tfm.batch.landing → abfss://landing@lakehousedkops.dfs.core.windows.net/tfm/batch
+
+Con él, la subida se hace por la CLI de Databricks y queda gobernada por el
+mismo mecanismo que las tablas:
+
+    databricks fs mkdir dbfs:/Volumes/bronze_tfm/batch/landing/ventas
+    databricks fs cp ventas.json dbfs:/Volumes/bronze_tfm/batch/landing/ventas/
+
+Esto no es un rodeo: es la forma en que Unity Catalog espera que se gobierne
+el acceso a ficheros, y evita repartir permisos de storage a nivel de Azure.
+
+## Convenciones de DKOps que hubo que descubrir
+
+Dos detalles de configuración que no son evidentes y que costaron dos
+ejecuciones fallidas:
+
+**`EXECUTION_ENVIRONMENT` debe ser `"local"`, no `"databricks"`.** Para DKOps,
+`"databricks"` significa *Databricks Connect desde una máquina externa*, y por
+eso exige `CLUSTER_ID`. Dentro de un job cluster el valor correcto es
+`"local"`: la librería detecta sola que el runtime es nativo y reutiliza la
+`SparkSession` existente.
+
+**El entorno se resuelve por `workspace_id`.** Cuando corre dentro de
+Databricks, DKOps ignora los nombres de entorno y busca en `environments` una
+clave que coincida con el ID del workspace. La clave debe ser
+`"7405612310572963"`, y el nombre legible (`dev`) va dentro, en el campo
+`env`. Fuera de Databricks el mecanismo cambia: se resuelve por la variable
+`DATABRICKS_TARGET`.
+
+## Resultado de la ejecución
+
+| Capa | Filas | Qué demuestra |
+|---|---|---|
+| Landing | 525 | 500 ventas + 25 reemisiones generadas a propósito |
+| Bronze | 525 | La ingesta conserva el dato tal y como llegó |
+| Silver | **500** | `full_merge` colapsó las 25 duplicadas |
+| Gold | 249 | Agregados por fecha × categoría × canal |
+
+El salto de 525 a 500 es el resultado relevante: no prueba que el job terminó,
+prueba que la **estrategia de deduplicación hace lo que promete**. Un `append`
+habría dejado 525 filas en Silver.
+
 ## Ejecución local
 
     cd use_cases/batch
@@ -88,3 +139,20 @@ generador son Python puro; los de `compute_kpis` levantan un Spark local.
 El job encadena tres tareas —`ingest_bronze`, `promote_silver`, `build_gold`—
 sobre un único job cluster compartido, que se levanta una vez y se apaga al
 terminar la última.
+
+El despliegue debe lanzarse desde un entorno que tenga el paquete `build`
+disponible, porque la CLI construye el wheel invocando `python -m build`. Si
+se lanza desde la extensión de VS Code conectada a un cluster, el `python` que
+se usa es el del cluster y falla con `No module named build`.
+
+## Limitación encontrada en DKOps
+
+El contrato de tabla de Silver **no puede declarar `_silver_created_at`**,
+aunque el flag del contrato de ingesta se llame `add_silver_timestamps` en
+plural. `MetadataEnricher` genera esa columna, pero solo se invoca en la ruta
+Bronze; la promoción a Silver va por las estrategias, y `FullMergeStrategy`
+añade únicamente `_silver_modified_at`. Declarar ambas hace fallar la
+validación de esquema.
+
+Está reportado como incidencia en el repositorio de DKOps. Mientras tanto, el
+contrato declara solo la columna que la librería genera de verdad.
