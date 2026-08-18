@@ -87,3 +87,39 @@
     que hace visible la deduplicación de Bronze a Silver. Reutiliza el SQL
     Warehouse serverless existente y no embebe credenciales, de modo que cada
     usuario lo consulta con sus permisos de Unity Catalog.
+- Fase 6 — Caso de uso CDF (orders):
+  - Tabla origen propia `silver_tfm.cdf.pedidos` con `change_data_feed`
+    activo, en lugar de consumir el feed de las tablas de Batch: evita acoplar
+    los bundles y permite ejercitar `UPDATE` y `DELETE`, que en unas ventas
+    solo ingeridas apenas se darían.
+  - Generador de pedidos con ciclo de vida (`nuevo` → `pagado` → `enviado` →
+    `entregado`, con salida a `cancelado`), de modo que los `UPDATE` mueven
+    pedidos entre grupos del agregado.
+  - Propagación incremental: se lee el feed desde la última versión procesada,
+    se deducen los estados obsoletos y se recalculan solo esos.
+  - Tabla de control `gold_tfm.cdf.cdf_control` con el puntero de versiones.
+    Es lo que hace incremental el proceso: sin ella habría que releer el feed
+    completo en cada ejecución.
+  - Cubiertos los dos errores clásicos del procesamiento incremental: ignorar
+    las preimágenes de los `UPDATE` (deja el grupo de origen inflado para
+    siempre) y no borrar los grupos que se quedan sin filas (un `MERGE` nunca
+    los toca y quedan congelados con un valor falso).
+  - Se recalcula por grupo afectado en vez de acumular deltas: converge sola
+    ante un reproceso, en lugar de duplicar importes de forma silenciosa.
+  - Eliminadas del caso las tareas `ingest_bronze` y `promote_silver` que
+    venían del scaffold: aquí no hay landing zone.
+  - El arranque en frío calcula el agregado completo en vez de leer el feed
+    desde la versión 0. Además de ser lo conceptualmente correcto —el feed
+    propaga cambios sobre un estado, no lo construye—, leer desde la versión 0
+    atraviesa la creación de la tabla y Delta lo rechaza con
+    `DELTA_CHANGE_DATA_FEED_INCOMPATIBLE_DATA_SCHEMA`.
+  - Las altas del generador se aplican con `upsert` y no con `append`: los
+    `pedido_id` se derivan de la semilla, así que repetir un lote con `append`
+    duplicaba la clave primaria en la tabla origen.
+  - El parámetro `lote` pasa a valer 0 por defecto, lo que deriva la semilla de
+    la versión actual de la tabla: cada ejecución produce cambios distintos sin
+    tener que pasar nada. Un valor explícito sigue haciendo el lote
+    reproducible, y ahora además idempotente.
+  - Dashboard AI/BI del caso, con el puntero de versiones y la marca de
+    recálculo por estado, que es lo que hace visible qué tocó cada ejecución.
+  - 15 tests en verde.

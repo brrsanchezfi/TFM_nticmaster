@@ -26,10 +26,13 @@ local = [
 
 # python_wheel_task invoca el job por su entry point, así que cada tarea del
 # workflow necesita el suyo. Sin esto el bundle no puede desplegarse.
+#
+# El caso CDF no ingiere desde una landing zone: su origen es una tabla Delta
+# que ya está en Silver. Por eso sus tareas no son ingest/promote/gold, sino
+# mutar la tabla origen y propagar sus cambios.
 [project.scripts]
-ingest_bronze = "orders.jobs.ingest_bronze:main"
-promote_silver = "orders.jobs.promote_silver:main"
-build_gold = "orders.jobs.build_gold:main"
+simulate_changes = "orders.jobs.simulate_changes:main"
+propagate_cdf = "orders.jobs.propagate_cdf:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

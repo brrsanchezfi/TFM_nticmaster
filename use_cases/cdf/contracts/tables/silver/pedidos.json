@@ -1,0 +1,26 @@
+{
+  "catalog": "{catalog.silver}",
+  "schema": "cdf",
+  "name": "pedidos",
+  "type": "MANAGED",
+  "format": "DELTA",
+  "comment": "Pedidos con Change Data Feed activo. Es la tabla origen del caso CDF: sobre ella se aplican INSERT/UPDATE/DELETE y Delta registra cada cambio para que Gold pueda propagarlos sin releer la tabla entera.",
+
+  "change_data_feed": true,
+
+  "columns": [
+    { "name": "pedido_id",  "type": "STRING",  "nullable": false, "comment": "Identificador único del pedido. Clave del merge." },
+    { "name": "cliente_id", "type": "STRING",  "comment": "Identificador del cliente." },
+    { "name": "fecha",      "type": "STRING",  "comment": "Fecha de creación del pedido, ISO-8601." },
+    { "name": "estado",     "type": "STRING",  "comment": "Estado del pedido: nuevo, pagado, enviado, entregado o cancelado. Es la dimensión que agrega Gold, y la que cambia con el tiempo." },
+    { "name": "ciudad",     "type": "STRING",  "comment": "Ciudad de entrega." },
+    { "name": "unidades",   "type": "INTEGER", "comment": "Unidades del pedido." },
+    { "name": "importe",    "type": "DOUBLE",  "comment": "Importe total del pedido en euros." },
+    { "name": "_updated_at", "type": "TIMESTAMP", "comment": "Última modificación del pedido." }
+  ],
+
+  "properties": {
+    "delta.autoOptimize.optimizeWrite": "true",
+    "proyecto": "TFM-NTIC-Master"
+  }
+}

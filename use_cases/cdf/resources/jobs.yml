@@ -1,10 +1,10 @@
 resources:
   jobs:
-    orders_pipeline:
+    orders_cdf_pipeline:
       name: "[${bundle.target}] cdf_orders_pipeline"
 
-      # Un único job cluster compartido por las tres tareas: se levanta una vez
-      # y se apaga al terminar la última, en vez de pagar tres arranques.
+      # Dos tareas encadenadas sobre un único job cluster: primero se muta la
+      # tabla origen, después se propaga a Gold lo que el feed reporte.
       job_clusters:
         - job_cluster_key: pipeline_cluster
           new_cluster:
@@ -30,40 +30,37 @@ resources:
               availability: SPOT_WITH_FALLBACK_AZURE
               first_on_demand: 1
 
+      parameters:
+        # Semilla del lote de cambios. Con 0 se deriva de la versión actual de
+        # la tabla, de modo que cada ejecución produce un conjunto distinto de
+        # INSERT/UPDATE/DELETE: es lo que permite encadenar varias pasadas en
+        # una demostración y ver avanzar el puntero.
+        # Un valor explícito fija el lote y lo hace reproducible.
+        - name: lote
+          default: "0"
+
       tasks:
-        - task_key: ingest_bronze
+        - task_key: simulate_changes
           job_cluster_key: pipeline_cluster
           python_wheel_task:
             package_name: orders
-            entry_point: ingest_bronze
+            entry_point: simulate_changes
             named_parameters:
               # El wheel vive en site-packages: la raíz del bundle (config/ y
               # contracts/) hay que pasarla explícitamente.
               bundle-root: ${workspace.file_path}
               config: config/config.dev.json
+              lote: "{{job.parameters.lote}}"
           libraries:
             - whl: ../dist/*.whl
 
-        - task_key: promote_silver
+        - task_key: propagate_cdf
           depends_on:
-            - task_key: ingest_bronze
+            - task_key: simulate_changes
           job_cluster_key: pipeline_cluster
           python_wheel_task:
             package_name: orders
-            entry_point: promote_silver
-            named_parameters:
-              bundle-root: ${workspace.file_path}
-              config: config/config.dev.json
-          libraries:
-            - whl: ../dist/*.whl
-
-        - task_key: build_gold
-          depends_on:
-            - task_key: promote_silver
-          job_cluster_key: pipeline_cluster
-          python_wheel_task:
-            package_name: orders
-            entry_point: build_gold
+            entry_point: propagate_cdf
             named_parameters:
               bundle-root: ${workspace.file_path}
               config: config/config.dev.json

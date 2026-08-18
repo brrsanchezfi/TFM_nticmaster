@@ -1,0 +1,293 @@
+{
+  "datasets": [
+    {
+      "name": "agregado",
+      "displayName": "Agregado por estado",
+      "queryLines": [
+        "SELECT estado, num_pedidos, unidades, importe_total, _recalculado_at\n",
+        "FROM gold_tfm.cdf.pedidos_agregado"
+      ]
+    },
+    {
+      "name": "control",
+      "displayName": "Puntero del Change Data Feed",
+      "queryLines": [
+        "SELECT dataset, ultima_version, filas_procesadas, _actualizado_at\n",
+        "FROM gold_tfm.cdf.cdf_control"
+      ]
+    },
+    {
+      "name": "pedidos",
+      "displayName": "Pedidos vigentes",
+      "queryLines": [
+        "SELECT pedido_id, estado, ciudad, unidades, importe, _updated_at\n",
+        "FROM silver_tfm.cdf.pedidos"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "principal",
+      "displayName": "Pedidos (CDF)",
+      "layout": [
+        {
+          "widget": {
+            "name": "titulo",
+            "textbox_spec": "# Pedidos — caso de uso CDF\nEl agregado de `gold_tfm.cdf.pedidos_agregado` **no se reconstruye entero**: cada ejecución lee el Change Data Feed desde la última versión procesada y recalcula solo los estados afectados."
+          },
+          "position": { "x": 0, "y": 0, "width": 6, "height": 2 }
+        },
+        {
+          "widget": {
+            "name": "version_procesada",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "control",
+                  "fields": [
+                    { "name": "max(ultima_version)", "expression": "MAX(`ultima_version`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "max(ultima_version)",
+                  "displayName": "Versión Delta procesada"
+                }
+              }
+            }
+          },
+          "position": { "x": 0, "y": 2, "width": 2, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "filas_ultimo_lote",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "control",
+                  "fields": [
+                    { "name": "max(filas_procesadas)", "expression": "MAX(`filas_procesadas`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "max(filas_procesadas)",
+                  "displayName": "Filas de cambio leídas"
+                }
+              }
+            }
+          },
+          "position": { "x": 2, "y": 2, "width": 2, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "pedidos_vigentes",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "agregado",
+                  "fields": [
+                    { "name": "sum(num_pedidos)", "expression": "SUM(`num_pedidos`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": { "fieldName": "sum(num_pedidos)", "displayName": "Pedidos vigentes" }
+              }
+            }
+          },
+          "position": { "x": 4, "y": 2, "width": 2, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "pedidos_por_estado",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "agregado",
+                  "fields": [
+                    { "name": "estado", "expression": "`estado`" },
+                    { "name": "sum(num_pedidos)", "expression": "SUM(`num_pedidos`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": { "fieldName": "estado", "scale": { "type": "categorical" }, "displayName": "Estado" },
+                "y": {
+                  "fieldName": "sum(num_pedidos)",
+                  "scale": { "type": "quantitative" },
+                  "displayName": "Pedidos"
+                }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Pedidos por estado — el agregado mantenido incrementalmente"
+              }
+            }
+          },
+          "position": { "x": 0, "y": 5, "width": 3, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "importe_por_estado",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "agregado",
+                  "fields": [
+                    { "name": "estado", "expression": "`estado`" },
+                    { "name": "sum(importe_total)", "expression": "SUM(`importe_total`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "pie",
+              "encodings": {
+                "angle": {
+                  "fieldName": "sum(importe_total)",
+                  "scale": { "type": "quantitative" },
+                  "displayName": "Importe (€)"
+                },
+                "color": { "fieldName": "estado", "scale": { "type": "categorical" }, "displayName": "Estado" }
+              }
+            }
+          },
+          "position": { "x": 3, "y": 5, "width": 3, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "recalculo_por_estado",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "agregado",
+                  "fields": [
+                    { "name": "estado", "expression": "`estado`" },
+                    { "name": "num_pedidos", "expression": "`num_pedidos`" },
+                    { "name": "unidades", "expression": "`unidades`" },
+                    { "name": "importe_total", "expression": "`importe_total`" },
+                    { "name": "_recalculado_at", "expression": "`_recalculado_at`" }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  { "fieldName": "estado", "displayName": "Estado" },
+                  { "fieldName": "num_pedidos", "displayName": "Pedidos" },
+                  { "fieldName": "unidades", "displayName": "Unidades" },
+                  { "fieldName": "importe_total", "displayName": "Importe (€)" },
+                  { "fieldName": "_recalculado_at", "displayName": "Último recálculo" }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "La columna de recálculo delata qué estados tocó la última ejecución"
+              }
+            }
+          },
+          "position": { "x": 0, "y": 11, "width": 6, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "puntero",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "control",
+                  "fields": [
+                    { "name": "dataset", "expression": "`dataset`" },
+                    { "name": "ultima_version", "expression": "`ultima_version`" },
+                    { "name": "filas_procesadas", "expression": "`filas_procesadas`" },
+                    { "name": "_actualizado_at", "expression": "`_actualizado_at`" }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  { "fieldName": "dataset", "displayName": "Tabla origen" },
+                  { "fieldName": "ultima_version", "displayName": "Versión procesada" },
+                  { "fieldName": "filas_procesadas", "displayName": "Filas de cambio" },
+                  { "fieldName": "_actualizado_at", "displayName": "Actualizado" }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Puntero: hasta dónde se ha propagado el feed"
+              }
+            }
+          },
+          "position": { "x": 0, "y": 17, "width": 6, "height": 4 }
+        },
+        {
+          "widget": {
+            "name": "pedidos_por_ciudad",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "pedidos",
+                  "fields": [
+                    { "name": "ciudad", "expression": "`ciudad`" },
+                    { "name": "count(*)", "expression": "COUNT(`*`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": { "fieldName": "ciudad", "scale": { "type": "categorical" }, "displayName": "Ciudad" },
+                "y": { "fieldName": "count(*)", "scale": { "type": "quantitative" }, "displayName": "Pedidos" }
+              }
+            }
+          },
+          "position": { "x": 0, "y": 21, "width": 6, "height": 6 }
+        }
+      ]
+    }
+  ]
+}

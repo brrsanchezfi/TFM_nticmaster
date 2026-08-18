@@ -1,0 +1,21 @@
+{
+  "catalog": "{catalog.gold}",
+  "schema": "cdf",
+  "name": "pedidos_agregado",
+  "type": "MANAGED",
+  "format": "DELTA",
+  "comment": "Agregado de pedidos por estado. Se mantiene de forma incremental: cada ejecución recalcula únicamente los estados afectados por los cambios que reporta el Change Data Feed, en lugar de reconstruir la tabla entera.",
+
+  "columns": [
+    { "name": "estado",          "type": "STRING", "nullable": false, "comment": "Estado del pedido. Clave del agregado y del merge." },
+    { "name": "num_pedidos",     "type": "LONG",   "comment": "Pedidos actualmente en ese estado." },
+    { "name": "unidades",        "type": "LONG",   "comment": "Unidades totales." },
+    { "name": "importe_total",   "type": "DOUBLE", "comment": "Importe acumulado en euros." },
+    { "name": "_recalculado_at", "type": "TIMESTAMP", "comment": "Última vez que este estado se recalculó. Permite ver qué filas tocó la última ejecución y cuáles quedaron intactas." }
+  ],
+
+  "properties": {
+    "delta.autoOptimize.optimizeWrite": "true",
+    "proyecto": "TFM-NTIC-Master"
+  }
+}
