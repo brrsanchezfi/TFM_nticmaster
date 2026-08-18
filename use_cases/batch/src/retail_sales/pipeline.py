@@ -17,7 +17,11 @@ from DKOps.ingestion.ops import IngestionOpsLogger
 from DKOps.launcher import Launcher
 
 DEFAULT_CONFIG = "config/config.dev.json"
-OPS_PATH = "/tmp/retail_sales/ops"
+
+# Fallback solo para ejecución local: en Databricks /tmp vive en el driver y
+# desaparece al apagarse el job cluster, así que el log de operaciones se
+# perdería. En dev se resuelve contra el path 'ops' del config (ADLS).
+OPS_PATH_FALLBACK = "/tmp/retail_sales/ops"
 
 BRONZE_CONTRACTS = "contracts/ingestion/bronze"
 SILVER_CONTRACTS = "contracts/ingestion/silver"
@@ -77,7 +81,11 @@ def build_engine(
         silver_contracts=silver_contracts,
         bronze_tables=bronze_tables,
         silver_tables=silver_tables,
-        ops=IngestionOpsLogger(launcher.spark, ops_path=OPS_PATH, pipeline="retail_sales"),
+        ops=IngestionOpsLogger(
+            launcher.spark,
+            ops_path=env.get_path("ops") if env.has_path("ops") else OPS_PATH_FALLBACK,
+            pipeline="retail_sales",
+        ),
     )
     return launcher, engine
 

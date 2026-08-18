@@ -1,0 +1,23 @@
+{
+  "name": "ventas",
+  "description": "Bronze -> Silver. Deduplica por venta_id y deja una única fila vigente por venta.",
+  "enabled": true,
+
+  "ingest_type": "batch",
+  "load_type": "full",
+
+  "source": {
+    "format": "delta"
+  },
+
+  "strategy": "full_merge",
+  "merge_keys": ["venta_id"],
+  "watermark_col": "_ingested_at",
+
+  "metadata": {
+    "add_silver_timestamps": true
+  },
+
+  "source_contract": "../../tables/bronze/ventas_raw.json",
+  "destination_contract": "../../tables/silver/ventas.json"
+}

@@ -1,0 +1,33 @@
+{
+  "catalog": "{catalog.bronze}",
+  "schema": "batch",
+  "name": "ventas_raw",
+  "type": "MANAGED",
+  "format": "DELTA",
+  "comment": "Ventas retail tal y como llegan de la landing zone. Los tipos se mantienen próximos al origen JSON: la conversión a tipos de negocio se hace en Silver.",
+
+  "columns": [
+    { "name": "venta_id",        "type": "STRING",  "nullable": false, "comment": "Identificador único de la venta. Clave de merge hacia Silver." },
+    { "name": "fecha",           "type": "STRING",  "comment": "Fecha de la venta en ISO-8601. STRING porque JSON no tiene tipo fecha." },
+    { "name": "cliente_id",      "type": "STRING",  "comment": "Identificador del cliente." },
+    { "name": "producto_id",     "type": "STRING",  "comment": "Identificador del producto." },
+    { "name": "producto",        "type": "STRING",  "comment": "Nombre comercial del producto." },
+    { "name": "categoria",       "type": "STRING",  "comment": "Categoría del producto." },
+    { "name": "canal",           "type": "STRING",  "comment": "Canal de venta: online o tienda." },
+    { "name": "ciudad",          "type": "STRING",  "comment": "Ciudad donde se registra la venta." },
+    { "name": "cantidad",        "type": "INTEGER", "comment": "Unidades vendidas." },
+    { "name": "precio_unitario", "type": "DOUBLE",  "comment": "Precio por unidad en euros." },
+    { "name": "importe",         "type": "DOUBLE",  "comment": "Importe total de la línea: cantidad * precio_unitario." },
+
+    { "name": "_ingested_at",    "type": "TIMESTAMP", "comment": "Momento exacto de la ingesta. Lo añade DKOps." },
+    { "name": "_ingested_date",  "type": "DATE",      "comment": "Día de la ingesta. Columna de partición: permite sobreescribir solo la ventana del día y hace la ingesta idempotente." },
+    { "name": "_source_file",    "type": "STRING",    "comment": "Fichero de origen. Trazabilidad hasta el dato crudo." }
+  ],
+
+  "partitions": ["_ingested_date"],
+
+  "properties": {
+    "delta.autoOptimize.optimizeWrite": "true",
+    "proyecto": "TFM-NTIC-Master"
+  }
+}

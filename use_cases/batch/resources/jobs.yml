@@ -23,8 +23,12 @@ resources:
             # Requerido para usar Unity Catalog desde un wheel task.
             data_security_mode: SINGLE_USER
             azure_attributes:
+              # En single-node la única VM es el driver, y Azure exige que el
+              # driver sea on-demand: first_on_demand debe ser >= 1. Es decir,
+              # aquí no hay ahorro por spot. Se deja declarado para que el
+              # ahorro aplique si algún día se añaden workers.
               availability: SPOT_WITH_FALLBACK_AZURE
-              first_on_demand: 0
+              first_on_demand: 1
 
       tasks:
         - task_key: ingest_bronze

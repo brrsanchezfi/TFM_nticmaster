@@ -1,11 +1,15 @@
 {
-  "EXECUTION_ENVIRONMENT": "databricks",
+  "EXECUTION_ENVIRONMENT": "local",
   "SPARK_APP_NAME": "weather_events-dev",
   "environments": {
-    "dev": {
+    "7405612310572963": {
       "env": "dev",
       "env_short": "d",
-      "catalogs": { "bronze": "bronze_tfm", "silver": "silver_tfm", "gold": "gold_tfm" }
+      "catalogs": {
+        "bronze": "bronze_tfm",
+        "silver": "silver_tfm",
+        "gold": "gold_tfm"
+      }
     }
   }
 }

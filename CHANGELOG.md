@@ -46,3 +46,44 @@
   - La raíz del bundle se pasa por `--bundle-root ${workspace.file_path}`: el
     wheel se instala en site-packages y no puede deducirla desde `__file__`.
   - `databricks bundle validate -t dev` correcto en los cuatro bundles.
+- Fase 5 — Caso de uso Batch (retail_sales):
+  - Generador de ventas sintéticas reproducible por semilla, que emite a
+    propósito un 5% de ventas repetidas para que la estrategia `full_merge`
+    tenga algo que resolver.
+  - Cinco contratos: tablas Bronze/Silver/Gold y las dos ingestas.
+  - Bronze particionado por `_ingested_date`, que es lo que permite a DKOps
+    hacer *partition overwrite* y que la ingesta sea idempotente.
+  - `compute_kpis()` separada de `build()` para poder testear la lógica de
+    negocio sin Databricks ni Unity Catalog.
+  - El log de operaciones pasa a ADLS: en `/tmp` se perdía al apagarse el
+    job cluster.
+  - 10 tests en verde, incluidos los que levantan Spark local.
+  - Documentado en `docs/casos_uso/batch.md`.
+  - **Ejecutado end-to-end en Databricks**: 525 filas en Landing y Bronze,
+    500 en Silver (las 25 reemisiones colapsadas por `full_merge`) y 249
+    agregados en Gold. Es la primera vez que un dato recorre la cadena
+    completa Terraform → Unity Catalog → DKOps → Asset Bundle.
+  - Correcciones necesarias para que el despliegue y la ejecución funcionaran:
+    - `first_on_demand` pasa a 1: en single-node la única VM es el driver y
+      Azure exige que sea on-demand. En consecuencia, no hay ahorro por spot
+      en esta configuración.
+    - `EXECUTION_ENVIRONMENT` pasa a `local` en los 4 casos de uso: para DKOps
+      `databricks` significa Databricks Connect desde fuera y exige
+      `CLUSTER_ID`.
+    - Las claves de `environments` pasan a ser el `workspace_id`: es así como
+      DKOps resuelve el entorno cuando corre dentro de Databricks.
+    - El contrato de Silver deja de declarar `_silver_created_at`: la
+      estrategia `full_merge` no la genera, pese al nombre en plural del flag
+      `add_silver_timestamps`. Reportado como incidencia en DKOps.
+  - Creado el volumen externo `bronze_tfm.batch.landing`: el usuario no tiene
+    rol de datos sobre el storage, así que la subida de ficheros se gobierna
+    por Unity Catalog en lugar de por RBAC de Azure.
+  - Descartado el riesgo de egress: los job clusters sí alcanzan GitHub para
+    instalar DKOps desde el tag.
+  - Capa de consumo: dashboard AI/BI declarado en el bundle y versionado en
+    `dashboards/ventas_kpis.lvdash.json`. Se despliega con el mismo
+    `bundle deploy` que el job, así que la capa de consumo también es
+    reproducible desde el repositorio. Incluye un gráfico de filas por capa
+    que hace visible la deduplicación de Bronze a Silver. Reutiliza el SQL
+    Warehouse serverless existente y no embebe credenciales, de modo que cada
+    usuario lo consulta con sus permisos de Unity Catalog.
