@@ -233,3 +233,6 @@ override.tf.json
 terraform.rc
 # .terraform.lock.hcl SI se versiona: fija las versiones exactas de providers
 # y es parte del requisito de reproducibilidad del TFM.
+
+# Configuración local de Claude Code (permisos por máquina)
+.claude/settings.local.json
