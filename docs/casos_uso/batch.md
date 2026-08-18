@@ -145,6 +145,40 @@ disponible, porque la CLI construye el wheel invocando `python -m build`. Si
 se lanza desde la extensión de VS Code conectada a un cluster, el `python` que
 se usa es el del cluster y falla con `No module named build`.
 
+## Capa de consumo: dashboard AI/BI
+
+El pipeline termina en una tabla, pero una tabla no demuestra gran cosa en una
+defensa. El bundle incluye además un **dashboard AI/BI de Databricks**,
+declarado como recurso y versionado en
+`dashboards/ventas_kpis.lvdash.json`.
+
+Se despliega con el mismo `databricks bundle deploy` que el job, lo que
+refuerza el argumento de reproducibilidad: la capa de consumo no es algo que
+alguien montó a mano en la UI, sino código en el repositorio.
+
+Contiene tres contadores (facturación, unidades, ticket medio), la evolución
+diaria del importe, el reparto por categoría y por canal, una tabla de detalle
+y —el más interesante— un gráfico de **filas por capa**:
+
+| Capa | Filas |
+|---|---|
+| Bronze | 525 |
+| Silver | 500 |
+| Gold | 249 |
+
+Ese gráfico convierte en algo visible lo que de otro modo se queda en una
+línea de log: la caída de Bronze a Silver **es** la deduplicación del
+`full_merge`, y se ve sin necesidad de abrir una consulta.
+
+Dos decisiones sobre el dashboard:
+
+- **Reutiliza el SQL Warehouse serverless existente** en lugar de crear uno
+  propio. Se autosuspende a los 10 minutos, así que solo consume mientras
+  alguien lo está mirando.
+- **`embed_credentials: false`**: cada usuario lo consulta con sus propios
+  permisos de Unity Catalog, en vez de heredar los del autor. El gobierno de
+  datos sigue aplicando en la capa de consumo.
+
 ## Limitación encontrada en DKOps
 
 El contrato de tabla de Silver **no puede declarar `_silver_created_at`**,

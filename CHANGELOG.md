@@ -80,3 +80,10 @@
     por Unity Catalog en lugar de por RBAC de Azure.
   - Descartado el riesgo de egress: los job clusters sí alcanzan GitHub para
     instalar DKOps desde el tag.
+  - Capa de consumo: dashboard AI/BI declarado en el bundle y versionado en
+    `dashboards/ventas_kpis.lvdash.json`. Se despliega con el mismo
+    `bundle deploy` que el job, así que la capa de consumo también es
+    reproducible desde el repositorio. Incluye un gráfico de filas por capa
+    que hace visible la deduplicación de Bronze a Silver. Reutiliza el SQL
+    Warehouse serverless existente y no embebe credenciales, de modo que cada
+    usuario lo consulta con sus permisos de Unity Catalog.
