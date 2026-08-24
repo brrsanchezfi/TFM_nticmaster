@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 # instala sin extras: su única dependencia real es loguru.
 # Versión fijada en platform/dkops_version.txt.
 dependencies = [
-  "dkops @ git+https://github.com/brrsanchezfi/DKOps.git@v0.3.0",
+  "dkops @ git+https://github.com/brrsanchezfi/DKOps.git@v0.3.2",
 ]
 
 [project.optional-dependencies]
@@ -20,13 +20,16 @@ dependencies = [
 # y delta-spark 3.2.0 con versiones exactas: no se repiten aquí para no
 # arriesgar un desajuste con las que la librería declara.
 local = [
-  "dkops[local] @ git+https://github.com/brrsanchezfi/DKOps.git@v0.3.0",
+  "dkops[local] @ git+https://github.com/brrsanchezfi/DKOps.git@v0.3.2",
   "pytest>=7.0",
 ]
 
 # python_wheel_task invoca el job por su entry point, así que cada tarea del
 # workflow necesita el suyo. Sin esto el bundle no puede desplegarse.
 [project.scripts]
+# El simulador del sistema origen es una tarea mas del workflow: deja los
+# eventos I/U/D en la landing antes de que se ingieran.
+simulate_source = "customers.jobs.simulate_source:main"
 ingest_bronze = "customers.jobs.ingest_bronze:main"
 promote_silver = "customers.jobs.promote_silver:main"
 build_gold = "customers.jobs.build_gold:main"

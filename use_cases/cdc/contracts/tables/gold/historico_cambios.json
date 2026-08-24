@@ -1,0 +1,21 @@
+{
+  "catalog": "{catalog.gold}",
+  "schema": "cdc",
+  "name": "historico_cambios",
+  "type": "MANAGED",
+  "format": "DELTA",
+  "comment": "Auditoría de la actividad del sistema origen: cuántas altas, modificaciones y bajas se registraron cada día. Se construye desde Bronze, no desde Silver, porque Silver ya ha colapsado los eventos en la foto actual.",
+
+  "columns": [
+    { "name": "fecha",         "type": "DATE",   "nullable": false, "comment": "Día de la operación en el sistema origen." },
+    { "name": "op_type",       "type": "STRING", "nullable": false, "comment": "Tipo de operación: I, U o D." },
+    { "name": "operaciones",   "type": "LONG",   "comment": "Eventos registrados ese día de ese tipo." },
+    { "name": "clientes",      "type": "LONG",   "comment": "Clientes distintos afectados." },
+    { "name": "_generated_at", "type": "TIMESTAMP", "comment": "Momento del cálculo." }
+  ],
+
+  "properties": {
+    "delta.autoOptimize.optimizeWrite": "true",
+    "proyecto": "TFM-NTIC-Master"
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "catalog": "{catalog.bronze}",
+  "schema": "cdc",
+  "name": "clientes_raw",
+  "type": "MANAGED",
+  "format": "DELTA",
+  "comment": "Histórico completo de eventos de cambio sobre la tabla de clientes del sistema origen. Es append-only: aquí no se actualiza ni se borra nada, cada evento queda registrado. La foto actual de cada cliente se construye en Silver.",
+
+  "columns": [
+    { "name": "cliente_id",  "type": "STRING",  "nullable": false, "comment": "Identificador del cliente en el sistema origen. Clave de negocio del merge." },
+    { "name": "nombre",      "type": "STRING",  "comment": "Nombre del cliente. Nulo en los eventos de borrado." },
+    { "name": "email",       "type": "STRING",  "comment": "Correo de contacto." },
+    { "name": "ciudad",      "type": "STRING",  "comment": "Ciudad del cliente." },
+    { "name": "segmento",    "type": "STRING",  "comment": "Segmento comercial: retail, premium o corporativo." },
+    { "name": "fecha_alta",  "type": "STRING",  "comment": "Fecha de alta en el sistema origen, ISO-8601." },
+
+    { "name": "op_type",     "type": "STRING",  "nullable": false, "comment": "Operación registrada: I (alta), U (modificación) o D (baja). Es lo que distingue un feed CDC de una ingesta normal." },
+    { "name": "op_ts",       "type": "STRING",  "nullable": false, "comment": "Instante de la operación en el sistema origen. Sirve de watermark: cuando llegan varios eventos del mismo cliente, gana el más reciente." },
+
+    { "name": "_ingested_at",   "type": "TIMESTAMP", "comment": "Momento de la ingesta. Lo añade DKOps." },
+    { "name": "_ingested_date", "type": "DATE",      "comment": "Día de la ingesta. Columna de partición." },
+    { "name": "_source_file",   "type": "STRING",    "comment": "Fichero de origen. Trazabilidad hasta el evento crudo." }
+  ],
+
+  "partitions": ["_ingested_date"],
+
+  "properties": {
+    "delta.autoOptimize.optimizeWrite": "true",
+    "proyecto": "TFM-NTIC-Master"
+  }
+}

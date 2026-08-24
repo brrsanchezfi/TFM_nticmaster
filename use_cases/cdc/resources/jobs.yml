@@ -1,10 +1,10 @@
 resources:
   jobs:
-    customers_pipeline:
+    customers_cdc_pipeline:
       name: "[${bundle.target}] cdc_customers_pipeline"
 
-      # Un único job cluster compartido por las tres tareas: se levanta una vez
-      # y se apaga al terminar la última, en vez de pagar tres arranques.
+      # Cuatro tareas sobre un único job cluster: exportar los cambios del
+      # sistema origen, ingerirlos, aplicarlos y agregar.
       job_clusters:
         - job_cluster_key: pipeline_cluster
           new_cluster:
@@ -30,15 +30,36 @@ resources:
               availability: SPOT_WITH_FALLBACK_AZURE
               first_on_demand: 1
 
+      parameters:
+        # Semilla del lote de eventos. Con 0 se deriva del reloj, de modo que
+        # cada ejecución emite cambios distintos; un valor explícito lo hace
+        # reproducible.
+        - name: lote
+          default: "0"
+
       tasks:
+        - task_key: simulate_source
+          job_cluster_key: pipeline_cluster
+          python_wheel_task:
+            package_name: customers
+            entry_point: simulate_source
+            named_parameters:
+              # El wheel vive en site-packages: la raíz del bundle (config/ y
+              # contracts/) hay que pasarla explícitamente.
+              bundle-root: ${workspace.file_path}
+              config: config/config.dev.json
+              lote: "{{job.parameters.lote}}"
+          libraries:
+            - whl: ../dist/*.whl
+
         - task_key: ingest_bronze
+          depends_on:
+            - task_key: simulate_source
           job_cluster_key: pipeline_cluster
           python_wheel_task:
             package_name: customers
             entry_point: ingest_bronze
             named_parameters:
-              # El wheel vive en site-packages: la raíz del bundle (config/ y
-              # contracts/) hay que pasarla explícitamente.
               bundle-root: ${workspace.file_path}
               config: config/config.dev.json
           libraries:
