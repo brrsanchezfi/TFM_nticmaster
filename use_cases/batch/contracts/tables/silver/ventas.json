@@ -22,7 +22,8 @@
     { "name": "_ingested_at",       "type": "TIMESTAMP", "comment": "Momento de la ingesta en Bronze. Se arrastra para trazabilidad." },
     { "name": "_ingested_date",     "type": "DATE",      "comment": "Día de la ingesta en Bronze." },
     { "name": "_source_file",       "type": "STRING",    "comment": "Fichero de origen." },
-    { "name": "_silver_modified_at", "type": "TIMESTAMP", "comment": "Última actualización de la fila en Silver. Es el único timestamp de Silver que existe: la estrategia full_merge de DKOps añade _silver_modified_at pero no _silver_created_at, aunque el flag del contrato se llame add_silver_timestamps en plural." }
+    { "name": "_silver_created_at",  "type": "TIMESTAMP", "comment": "Primera vez que la fila llegó a Silver. DKOps la marca como insert-only, así que el MERGE la inserta pero nunca la sobrescribe: sigue significando 'primera escritura' por muchas veces que la venta se reemita." },
+    { "name": "_silver_modified_at", "type": "TIMESTAMP", "comment": "Última actualización de la fila en Silver." }
   ],
 
   "properties": {

@@ -1,0 +1,25 @@
+{
+  "name": "clientes",
+  "description": "Bronze -> Silver. Aplica los eventos I/U/D y deja una fila por cliente con su estado actual.",
+  "enabled": true,
+
+  "ingest_type": "batch",
+  "load_type": "cdc",
+
+  "source": {
+    "format": "delta"
+  },
+
+  "strategy": "cdc_merge",
+  "merge_keys": ["cliente_id"],
+
+  "_comentario_watermark": "Cuando un cliente tiene varios eventos pendientes, gana el de op_ts más reciente. Sin watermark, el resultado dependería del orden en que Spark leyese los ficheros.",
+  "watermark_col": "op_ts",
+
+  "metadata": {
+    "add_silver_timestamps": true
+  },
+
+  "source_contract": "../../tables/bronze/clientes_raw.json",
+  "destination_contract": "../../tables/silver/clientes_current.json"
+}

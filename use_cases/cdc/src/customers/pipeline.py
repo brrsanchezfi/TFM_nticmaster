@@ -1,4 +1,4 @@
-"""Cableado de DKOps para el caso de uso cdc.
+"""Cableado de DKOps para el caso de uso CDC.
 
 Única pieza de fontanería del bundle: construye el ``IngestionEngine`` a partir
 de los contratos versionados en ``contracts/``. La lógica de ingesta y de
@@ -17,7 +17,12 @@ from DKOps.ingestion.ops import IngestionOpsLogger
 from DKOps.launcher import Launcher
 
 DEFAULT_CONFIG = "config/config.dev.json"
-OPS_PATH = "/tmp/customers/ops"
+
+# Fallbacks solo para ejecución local: en Databricks /tmp vive en el driver y
+# desaparece al apagarse el job cluster, así que el estado de Auto Loader y el
+# log de operaciones se perderían entre ejecuciones.
+OPS_PATH_FALLBACK = "/tmp/customers/ops"
+SCHEMAS_PATH_FALLBACK = "/tmp/customers/schemas"
 
 BRONZE_CONTRACTS = "contracts/ingestion/bronze"
 SILVER_CONTRACTS = "contracts/ingestion/silver"
@@ -35,8 +40,11 @@ def resolve_bundle_root(bundle_root: str | None = None) -> Path:
     env = os.environ.get("BUNDLE_ROOT")
     if env:
         return Path(env)
-    # Ejecución desde el repo: .../use_cases/cdc/src/customers/pipeline.py
     return Path(__file__).resolve().parents[2]
+
+
+def _ruta(env, nombre: str, fallback: str) -> str:
+    return env.get_path(nombre) if env.has_path(nombre) else fallback
 
 
 def build_engine(
@@ -77,7 +85,13 @@ def build_engine(
         silver_contracts=silver_contracts,
         bronze_tables=bronze_tables,
         silver_tables=silver_tables,
-        ops=IngestionOpsLogger(launcher.spark, ops_path=OPS_PATH, pipeline="customers"),
+        ops=IngestionOpsLogger(
+            launcher.spark,
+            ops_path=_ruta(env, "ops", OPS_PATH_FALLBACK),
+            pipeline="customers",
+        ),
+        # Sin esto, Auto Loader guardaría el esquema en /tmp del driver.
+        schema_root=_ruta(env, "schemas", SCHEMAS_PATH_FALLBACK),
     )
     return launcher, engine
 
@@ -89,4 +103,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                    help="Raíz del bundle desplegado (workspace.file_path).")
     p.add_argument("--config", default=DEFAULT_CONFIG,
                    help="Ruta del config.json, relativa a la raíz del bundle.")
+    p.add_argument("--lote", type=int, default=0,
+                   help="Semilla del lote de eventos. 0 (por defecto) la deriva "
+                        "del reloj, de modo que cada ejecución genera cambios "
+                        "distintos. Un valor explícito hace el lote reproducible.")
     return p.parse_known_args(argv)[0]

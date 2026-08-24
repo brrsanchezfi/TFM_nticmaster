@@ -1,6 +1,7 @@
 {
   "EXECUTION_ENVIRONMENT": "local",
   "SPARK_APP_NAME": "customers-dev",
+  "LOG_DIR": "/tmp/customers/logs",
   "environments": {
     "7405612310572963": {
       "env": "dev",
@@ -9,6 +10,12 @@
         "bronze": "bronze_tfm",
         "silver": "silver_tfm",
         "gold": "gold_tfm"
+      },
+      "paths": {
+        "landing": "abfss://landing@lakehousedkops.dfs.core.windows.net/tfm/cdc/landing",
+        "checkpoint": "abfss://landing@lakehousedkops.dfs.core.windows.net/tfm/cdc/_checkpoints",
+        "schemas": "abfss://landing@lakehousedkops.dfs.core.windows.net/tfm/cdc/_schemas",
+        "ops": "abfss://landing@lakehousedkops.dfs.core.windows.net/tfm/cdc/_ops"
       }
     }
   }

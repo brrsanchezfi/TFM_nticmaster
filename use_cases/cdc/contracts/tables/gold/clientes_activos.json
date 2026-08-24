@@ -1,0 +1,22 @@
+{
+  "catalog": "{catalog.gold}",
+  "schema": "cdc",
+  "name": "clientes_activos",
+  "type": "MANAGED",
+  "format": "DELTA",
+  "comment": "Cartera de clientes por segmento y ciudad, separando activos de bajas. El soft-delete de Silver es lo que permite contar ambas cosas: con un borrado físico, las bajas serían invisibles.",
+
+  "columns": [
+    { "name": "segmento",     "type": "STRING", "nullable": false, "comment": "Segmento comercial." },
+    { "name": "ciudad",       "type": "STRING", "nullable": false, "comment": "Ciudad." },
+    { "name": "activos",      "type": "LONG",   "comment": "Clientes vigentes." },
+    { "name": "bajas",        "type": "LONG",   "comment": "Clientes dados de baja, conservados por el soft-delete." },
+    { "name": "total",        "type": "LONG",   "comment": "Clientes registrados en total." },
+    { "name": "_generated_at","type": "TIMESTAMP", "comment": "Momento del cálculo." }
+  ],
+
+  "properties": {
+    "delta.autoOptimize.optimizeWrite": "true",
+    "proyecto": "TFM-NTIC-Master"
+  }
+}

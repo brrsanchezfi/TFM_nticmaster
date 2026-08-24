@@ -1,0 +1,239 @@
+{
+  "datasets": [
+    {
+      "name": "cartera",
+      "displayName": "Cartera por segmento y ciudad",
+      "queryLines": [
+        "SELECT segmento, ciudad, activos, bajas, total\n",
+        "FROM gold_tfm.cdc.clientes_activos"
+      ]
+    },
+    {
+      "name": "historico",
+      "displayName": "Actividad del sistema origen",
+      "queryLines": [
+        "SELECT fecha, op_type, operaciones, clientes\n",
+        "FROM gold_tfm.cdc.historico_cambios"
+      ]
+    },
+    {
+      "name": "capas",
+      "displayName": "Eventos frente a estado actual",
+      "queryLines": [
+        "SELECT 'Eventos en Bronze' AS capa, COUNT(*) AS filas FROM bronze_tfm.cdc.clientes_raw\n",
+        "UNION ALL\n",
+        "SELECT 'Clientes en Silver' AS capa, COUNT(*) AS filas FROM silver_tfm.cdc.clientes_current"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "principal",
+      "displayName": "Clientes (CDC)",
+      "layout": [
+        {
+          "widget": {
+            "name": "titulo",
+            "textbox_spec": "# Clientes — caso de uso CDC\nEl sistema origen emite eventos `I`/`U`/`D`. Bronze los conserva todos; Silver aplica el último de cada cliente y marca las bajas con **soft-delete** en lugar de borrarlas."
+          },
+          "position": { "x": 0, "y": 0, "width": 6, "height": 2 }
+        },
+        {
+          "widget": {
+            "name": "activos",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "cartera",
+                  "fields": [{ "name": "sum(activos)", "expression": "SUM(`activos`)" }],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": { "fieldName": "sum(activos)", "displayName": "Clientes activos" }
+              }
+            }
+          },
+          "position": { "x": 0, "y": 2, "width": 2, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "bajas",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "cartera",
+                  "fields": [{ "name": "sum(bajas)", "expression": "SUM(`bajas`)" }],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": { "fieldName": "sum(bajas)", "displayName": "Bajas (soft-delete)" }
+              }
+            }
+          },
+          "position": { "x": 2, "y": 2, "width": 2, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "operaciones",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "historico",
+                  "fields": [{ "name": "sum(operaciones)", "expression": "SUM(`operaciones`)" }],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": { "fieldName": "sum(operaciones)", "displayName": "Eventos procesados" }
+              }
+            }
+          },
+          "position": { "x": 4, "y": 2, "width": 2, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "eventos_por_tipo",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "historico",
+                  "fields": [
+                    { "name": "op_type", "expression": "`op_type`" },
+                    { "name": "sum(operaciones)", "expression": "SUM(`operaciones`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": { "fieldName": "op_type", "scale": { "type": "categorical" }, "displayName": "Operación" },
+                "y": { "fieldName": "sum(operaciones)", "scale": { "type": "quantitative" }, "displayName": "Eventos" }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Altas (I), modificaciones (U) y bajas (D) capturadas"
+              }
+            }
+          },
+          "position": { "x": 0, "y": 5, "width": 3, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "eventos_vs_clientes",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "capas",
+                  "fields": [
+                    { "name": "capa", "expression": "`capa`" },
+                    { "name": "sum(filas)", "expression": "SUM(`filas`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": { "fieldName": "capa", "scale": { "type": "categorical" }, "displayName": "" },
+                "y": { "fieldName": "sum(filas)", "scale": { "type": "quantitative" }, "displayName": "Filas" }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Muchos eventos, un cliente: eso es lo que colapsa el cdc_merge"
+              }
+            }
+          },
+          "position": { "x": 3, "y": 5, "width": 3, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "actividad_diaria",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "historico",
+                  "fields": [
+                    { "name": "fecha", "expression": "`fecha`" },
+                    { "name": "op_type", "expression": "`op_type`" },
+                    { "name": "sum(operaciones)", "expression": "SUM(`operaciones`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": { "fieldName": "fecha", "scale": { "type": "temporal" }, "displayName": "Fecha" },
+                "y": { "fieldName": "sum(operaciones)", "scale": { "type": "quantitative" }, "displayName": "Eventos" },
+                "color": { "fieldName": "op_type", "scale": { "type": "categorical" }, "displayName": "Operación" }
+              }
+            }
+          },
+          "position": { "x": 0, "y": 11, "width": 6, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "detalle_cartera",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "cartera",
+                  "fields": [
+                    { "name": "segmento", "expression": "`segmento`" },
+                    { "name": "ciudad", "expression": "`ciudad`" },
+                    { "name": "activos", "expression": "`activos`" },
+                    { "name": "bajas", "expression": "`bajas`" },
+                    { "name": "total", "expression": "`total`" }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  { "fieldName": "segmento", "displayName": "Segmento" },
+                  { "fieldName": "ciudad", "displayName": "Ciudad" },
+                  { "fieldName": "activos", "displayName": "Activos" },
+                  { "fieldName": "bajas", "displayName": "Bajas" },
+                  { "fieldName": "total", "displayName": "Total" }
+                ]
+              }
+            }
+          },
+          "position": { "x": 0, "y": 17, "width": 6, "height": 7 }
+        }
+      ]
+    }
+  ]
+}

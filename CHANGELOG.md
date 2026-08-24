@@ -143,3 +143,52 @@
   - `schedule` cada 15 minutos, en pausa para no consumir DBUs.
   - Dashboard AI/BI del caso.
   - 8 tests en verde, con la respuesta de la API simulada.
+- Fase 7 — Caso de uso CDC (customers):
+  - Origen simulado en lugar de Change Tracking sobre Azure SQL: el provider
+    `Microsoft.Sql` sigue sin registrar y no hay permisos para hacerlo. El
+    simulador emite el mismo contrato de datos —una fila por evento con
+    `op_type` y `op_ts`—, de modo que el pipeline es idéntico al que
+    procesaría un feed real.
+  - Bronze append-only con el histórico de eventos; Silver con una fila por
+    cliente. Las dos tablas Gold se construyen desde sitios distintos:
+    la cartera desde Silver y la auditoría diaria desde Bronze, que es la
+    única que conserva los eventos.
+  - `watermark_col: op_ts` para que gane el evento más reciente por cliente.
+    Sin él, `cdc_merge` elige una fila arbitraria y el resultado depende del
+    orden de lectura.
+  - Soft-delete: las bajas se marcan con `is_deleted` en vez de borrarse, lo
+    que permite auditarlas, no romper referencias y revertir un error.
+  - Dashboard AI/BI del caso.
+  - 12 tests en verde, incluidas las garantías del simulador (las altas no
+    reutilizan identificadores y ningún cliente recibe un `U` y una `D` en el
+    mismo lote, que compartirían `op_ts`).
+  - Corregida una fuga de columnas: el simulador leía los clientes vigentes de
+    Silver y devolvía las filas enteras, arrastrando `is_deleted` y
+    `_silver_modified_at` hasta la landing. Auto Loader las detectaba como
+    campos nuevos y abortaba el stream. Un sistema origen no puede conocer las
+    columnas internas del almacén.
+  - El filtro de clientes vigentes pasa a `is_deleted IS NOT TRUE`: con lógica
+    de tres valores, `NOT NULL` no es `TRUE`, y un solo nulo dejaba la fila
+    fuera. El job falla explícitamente si la cartera sale vacía, en vez de
+    generar lotes degenerados en silencio.
+  - Rutas del caso reorganizadas bajo `tfm/cdc/`, con landing, checkpoints,
+    schemas y ops juntos.
+- Actualización a DKOps v0.3.2:
+  - Las tres incidencias reportadas durante el TFM están corregidas: el wheel
+    ya declara su versión real, la promoción a Silver genera
+    `_silver_created_at`, y los comentarios del contrato llegan a Unity
+    Catalog por cualquier camino de escritura.
+  - Restaurado `_silver_created_at` en el contrato Silver de Batch. La nueva
+    versión lo trata como `insert_only`, así que el `MERGE` lo inserta pero no
+    lo sobrescribe: sigue significando "primera escritura".
+  - `apply_contract_metadata()` es idempotente y repara tablas ya creadas sin
+    recrearlas, que era el problema práctico que teníamos con 7 tablas sin
+    documentar.
+  - 48 tests en verde con la nueva versión.
+  - La v0.3.1 intermedia no llegó a usarse: traía una regresión de empaquetado
+    que impedía instalarla en Databricks. Usaba `license = "MIT"` en formato
+    PEP 639, que exige `setuptools>=77`, mientras el `build-system` seguía
+    declarando `>=68`. En un venv de desarrollo no se notaba —pip aísla la
+    construcción y baja un setuptools moderno—, pero en el cluster ninguna
+    tarea llegaba a arrancar. Reportado y corregido en v0.3.2, verificado
+    construyendo con setuptools 68.0.0.

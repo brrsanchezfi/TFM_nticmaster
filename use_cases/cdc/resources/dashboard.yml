@@ -1,0 +1,15 @@
+resources:
+  dashboards:
+    clientes_cdc:
+      display_name: "[${bundle.target}] TFM - Clientes (CDC)"
+      file_path: ../dashboards/clientes_cdc.lvdash.json
+
+      # SQL Warehouse serverless que ya existe en el workspace: se autosuspende
+      # a los 10 minutos, así que el dashboard no genera coste mientras nadie
+      # lo mira. No se crea un warehouse propio para el TFM.
+      warehouse_id: ${var.warehouse_id}
+
+      # El dashboard es una demostración: se regenera desde el JSON versionado.
+      # Si alguien lo edita en la UI, el siguiente deploy sobreescribe esos
+      # cambios en lugar de fallar.
+      embed_credentials: false

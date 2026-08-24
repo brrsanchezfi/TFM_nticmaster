@@ -2,14 +2,26 @@
 # Se fija un tag concreto, nunca "main", para que el proyecto sea reproducible.
 #
 # Instalación:
-#   pip install "dkops[local] @ git+https://github.com/brrsanchezfi/DKOps.git@v0.3.0"
+#   pip install "dkops[local] @ git+https://github.com/brrsanchezfi/DKOps.git@v0.3.2"
 #
 # El extra [local] añade pyspark 3.5.3 y delta-spark 3.2.0 para desarrollo y
 # tests offline. En Databricks NO se instala ese extra: pyspark lo aporta el
 # runtime del cluster, y la única dependencia real de DKOps es loguru.
 #
-# Nota de reproducibilidad: el wheel construido desde el tag v0.3.0 se
-# identifica internamente como 0.2.4 — la versión del pyproject.toml de DKOps
-# no se subió al taguear. El tag de git es la referencia fiable.
+# Histórico:
+#   v0.3.0 — primera versión usada en el TFM. Tres limitaciones detectadas
+#            durante la implementación y reportadas como incidencias:
+#            el wheel se identificaba como 0.2.4, la promoción a Silver no
+#            generaba _silver_created_at, y los comentarios del contrato solo
+#            llegaban a Unity Catalog si la tabla la creaba CreateWriter.
+#   v0.3.1 — las tres corregidas. Añade `apply_contract_metadata()`,
+#            idempotente, que permite documentar tablas ya creadas sin
+#            recrearlas, y `insert_only_columns` en el upsert, para que
+#            _silver_created_at no se sobrescriba en cada MERGE.
+#            No llegó a usarse: introdujo una regresión de empaquetado que
+#            impedía instalarla en Databricks (`license = "MIT"` en formato
+#            PEP 639 exige setuptools>=77, pero build-system pedía >=68).
+#   v0.3.2 — corrige esa regresión. Verificado construyendo con setuptools
+#            68.0.0, que es la versión con la que fallaba.
 
-v0.3.0
+v0.3.2

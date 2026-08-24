@@ -1,0 +1,27 @@
+{
+  "catalog": "{catalog.silver}",
+  "schema": "cdc",
+  "name": "clientes_current",
+  "type": "MANAGED",
+  "format": "DELTA",
+  "comment": "Foto actual de cada cliente: una fila por cliente_id con su último estado conocido. Las bajas no se borran, se marcan con is_deleted — así el histórico sigue siendo auditable y las claves foráneas de otras tablas no se rompen.",
+
+  "columns": [
+    { "name": "cliente_id",  "type": "STRING",  "nullable": false, "comment": "Identificador del cliente. Clave del merge." },
+    { "name": "nombre",      "type": "STRING",  "comment": "Nombre del cliente." },
+    { "name": "email",       "type": "STRING",  "comment": "Correo de contacto." },
+    { "name": "ciudad",      "type": "STRING",  "comment": "Ciudad del cliente." },
+    { "name": "segmento",    "type": "STRING",  "comment": "Segmento comercial." },
+    { "name": "fecha_alta",  "type": "STRING",  "comment": "Fecha de alta en el sistema origen." },
+    { "name": "op_ts",       "type": "STRING",  "comment": "Instante del último evento aplicado a este cliente." },
+
+    { "name": "is_deleted",  "type": "BOOLEAN", "comment": "Soft delete. DKOps la pone a true cuando el último evento del cliente es una baja, en lugar de eliminar la fila." },
+
+    { "name": "_silver_modified_at", "type": "TIMESTAMP", "comment": "Última actualización de la fila en Silver." }
+  ],
+
+  "properties": {
+    "delta.autoOptimize.optimizeWrite": "true",
+    "proyecto": "TFM-NTIC-Master"
+  }
+}
