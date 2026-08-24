@@ -1,6 +1,7 @@
 site_name: TFM NTIC Master - PoC Databricks
 nav:
   - Inicio: index.md
+  - Estado del proyecto: estado.md
   - Arquitectura:
       - Global: arquitectura/global.md
       - Lakehouse: arquitectura/lakehouse.md

@@ -1,0 +1,267 @@
+{
+  "datasets": [
+    {
+      "name": "metricas",
+      "displayName": "Métricas por ventana horaria",
+      "queryLines": [
+        "SELECT ciudad, ventana, num_lecturas, temperatura_media, temperatura_min,\n",
+        "       temperatura_max, humedad_media, viento_max\n",
+        "FROM gold_tfm.streaming.metricas"
+      ]
+    },
+    {
+      "name": "capas",
+      "displayName": "Filas por capa",
+      "queryLines": [
+        "SELECT 'Bronze' AS capa, COUNT(*) AS filas FROM bronze_tfm.streaming.eventos_raw\n",
+        "UNION ALL\n",
+        "SELECT 'Silver' AS capa, COUNT(*) AS filas FROM silver_tfm.streaming.eventos\n",
+        "UNION ALL\n",
+        "SELECT 'Gold' AS capa, COUNT(*) AS filas FROM gold_tfm.streaming.metricas"
+      ]
+    },
+    {
+      "name": "eventos",
+      "displayName": "Observaciones deduplicadas",
+      "queryLines": [
+        "SELECT ciudad, hora, temperatura, humedad, viento, capturado_at, _ingested_at\n",
+        "FROM silver_tfm.streaming.eventos"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "name": "principal",
+      "displayName": "Eventos meteorológicos",
+      "layout": [
+        {
+          "widget": {
+            "name": "titulo",
+            "textbox_spec": "# Eventos meteorológicos — caso de uso Streaming\nUn job corto consulta una API pública y deja el lote en la landing; **Auto Loader** con trigger `availableNow` lo ingiere y para. Sin Kafka ni Event Hubs, y sin clusters encendidos esperando."
+          },
+          "position": { "x": 0, "y": 0, "width": 6, "height": 2 }
+        },
+        {
+          "widget": {
+            "name": "observaciones",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "metricas",
+                  "fields": [
+                    { "name": "sum(num_lecturas)", "expression": "SUM(`num_lecturas`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": { "fieldName": "sum(num_lecturas)", "displayName": "Observaciones" }
+              }
+            }
+          },
+          "position": { "x": 0, "y": 2, "width": 2, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "temperatura_actual",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "metricas",
+                  "fields": [
+                    { "name": "avg(temperatura_media)", "expression": "AVG(`temperatura_media`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "avg(temperatura_media)",
+                  "displayName": "Temperatura media (°C)"
+                }
+              }
+            }
+          },
+          "position": { "x": 2, "y": 2, "width": 2, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "racha_maxima",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "metricas",
+                  "fields": [
+                    { "name": "max(viento_max)", "expression": "MAX(`viento_max`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": { "fieldName": "max(viento_max)", "displayName": "Racha máxima (km/h)" }
+              }
+            }
+          },
+          "position": { "x": 4, "y": 2, "width": 2, "height": 3 }
+        },
+        {
+          "widget": {
+            "name": "evolucion_temperatura",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "metricas",
+                  "fields": [
+                    { "name": "ventana", "expression": "`ventana`" },
+                    { "name": "ciudad", "expression": "`ciudad`" },
+                    { "name": "avg(temperatura_media)", "expression": "AVG(`temperatura_media`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": { "fieldName": "ventana", "scale": { "type": "temporal" }, "displayName": "Ventana horaria" },
+                "y": {
+                  "fieldName": "avg(temperatura_media)",
+                  "scale": { "type": "quantitative" },
+                  "displayName": "Temperatura (°C)"
+                },
+                "color": { "fieldName": "ciudad", "scale": { "type": "categorical" }, "displayName": "Ciudad" }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Evolución de la temperatura por ciudad"
+              }
+            }
+          },
+          "position": { "x": 0, "y": 5, "width": 6, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "viento_por_ciudad",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "metricas",
+                  "fields": [
+                    { "name": "ciudad", "expression": "`ciudad`" },
+                    { "name": "max(viento_max)", "expression": "MAX(`viento_max`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": { "fieldName": "ciudad", "scale": { "type": "categorical" }, "displayName": "Ciudad" },
+                "y": {
+                  "fieldName": "max(viento_max)",
+                  "scale": { "type": "quantitative" },
+                  "displayName": "Racha máxima (km/h)"
+                }
+              }
+            }
+          },
+          "position": { "x": 0, "y": 11, "width": 3, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "filas_por_capa",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "capas",
+                  "fields": [
+                    { "name": "capa", "expression": "`capa`" },
+                    { "name": "sum(filas)", "expression": "SUM(`filas`)" }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": { "fieldName": "capa", "scale": { "type": "categorical" }, "displayName": "Capa" },
+                "y": { "fieldName": "sum(filas)", "scale": { "type": "quantitative" }, "displayName": "Filas" }
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "Filas por capa: la caída de Bronze a Silver son lecturas repetidas"
+              }
+            }
+          },
+          "position": { "x": 3, "y": 11, "width": 3, "height": 6 }
+        },
+        {
+          "widget": {
+            "name": "detalle",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "eventos",
+                  "fields": [
+                    { "name": "ciudad", "expression": "`ciudad`" },
+                    { "name": "hora", "expression": "`hora`" },
+                    { "name": "temperatura", "expression": "`temperatura`" },
+                    { "name": "humedad", "expression": "`humedad`" },
+                    { "name": "viento", "expression": "`viento`" },
+                    { "name": "capturado_at", "expression": "`capturado_at`" },
+                    { "name": "_ingested_at", "expression": "`_ingested_at`" }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 1,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  { "fieldName": "ciudad", "displayName": "Ciudad" },
+                  { "fieldName": "hora", "displayName": "Hora observación" },
+                  { "fieldName": "temperatura", "displayName": "Temp. (°C)" },
+                  { "fieldName": "humedad", "displayName": "Humedad (%)" },
+                  { "fieldName": "viento", "displayName": "Viento (km/h)" },
+                  { "fieldName": "capturado_at", "displayName": "Consultado" },
+                  { "fieldName": "_ingested_at", "displayName": "Ingerido" }
+                ]
+              },
+              "frame": {
+                "showTitle": true,
+                "title": "La distancia entre 'hora' y 'consultado' explica por qué hay lecturas repetidas"
+              }
+            }
+          },
+          "position": { "x": 0, "y": 17, "width": 6, "height": 8 }
+        }
+      ]
+    }
+  ]
+}

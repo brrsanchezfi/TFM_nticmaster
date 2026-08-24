@@ -17,7 +17,13 @@ from DKOps.ingestion.ops import IngestionOpsLogger
 from DKOps.launcher import Launcher
 
 DEFAULT_CONFIG = "config/config.dev.json"
-OPS_PATH = "/tmp/weather_events/ops"
+
+# Fallbacks solo para ejecución local: en Databricks /tmp vive en el driver y
+# desaparece al apagarse el job cluster. Auto Loader guarda ahí el esquema
+# inferido y el registro de ficheros ya procesados, así que perderlo
+# significaría reingerir todo en la siguiente ejecución.
+OPS_PATH_FALLBACK = "/tmp/weather_events/ops"
+SCHEMAS_PATH_FALLBACK = "/tmp/weather_events/schemas"
 
 BRONZE_CONTRACTS = "contracts/ingestion/bronze"
 SILVER_CONTRACTS = "contracts/ingestion/silver"
@@ -35,8 +41,11 @@ def resolve_bundle_root(bundle_root: str | None = None) -> Path:
     env = os.environ.get("BUNDLE_ROOT")
     if env:
         return Path(env)
-    # Ejecución desde el repo: .../use_cases/streaming/src/weather_events/pipeline.py
     return Path(__file__).resolve().parents[2]
+
+
+def _ruta(env, nombre: str, fallback: str) -> str:
+    return env.get_path(nombre) if env.has_path(nombre) else fallback
 
 
 def build_engine(
@@ -77,7 +86,13 @@ def build_engine(
         silver_contracts=silver_contracts,
         bronze_tables=bronze_tables,
         silver_tables=silver_tables,
-        ops=IngestionOpsLogger(launcher.spark, ops_path=OPS_PATH, pipeline="weather_events"),
+        ops=IngestionOpsLogger(
+            launcher.spark,
+            ops_path=_ruta(env, "ops", OPS_PATH_FALLBACK),
+            pipeline="weather_events",
+        ),
+        # Sin esto, Auto Loader guardaría el esquema en /tmp del driver.
+        schema_root=_ruta(env, "schemas", SCHEMAS_PATH_FALLBACK),
     )
     return launcher, engine
 

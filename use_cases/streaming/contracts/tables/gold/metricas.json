@@ -1,0 +1,25 @@
+{
+  "catalog": "{catalog.gold}",
+  "schema": "streaming",
+  "name": "metricas",
+  "type": "MANAGED",
+  "format": "DELTA",
+  "comment": "Métricas meteorológicas agregadas por ciudad y ventana horaria. Es la capa de consumo del caso streaming.",
+
+  "columns": [
+    { "name": "ciudad",           "type": "STRING",    "nullable": false, "comment": "Ciudad." },
+    { "name": "ventana",          "type": "TIMESTAMP", "nullable": false, "comment": "Inicio de la ventana horaria a la que pertenecen las lecturas." },
+    { "name": "num_lecturas",     "type": "LONG",      "comment": "Observaciones distintas agregadas en la ventana." },
+    { "name": "temperatura_media","type": "DOUBLE",    "comment": "Temperatura media en grados Celsius." },
+    { "name": "temperatura_min",  "type": "DOUBLE",    "comment": "Temperatura mínima registrada." },
+    { "name": "temperatura_max",  "type": "DOUBLE",    "comment": "Temperatura máxima registrada." },
+    { "name": "humedad_media",    "type": "DOUBLE",    "comment": "Humedad relativa media en porcentaje." },
+    { "name": "viento_max",       "type": "DOUBLE",    "comment": "Racha máxima registrada en km/h." },
+    { "name": "_generated_at",    "type": "TIMESTAMP", "comment": "Momento en que se calculó el agregado." }
+  ],
+
+  "properties": {
+    "delta.autoOptimize.optimizeWrite": "true",
+    "proyecto": "TFM-NTIC-Master"
+  }
+}
