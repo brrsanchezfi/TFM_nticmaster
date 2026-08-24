@@ -1,0 +1,19 @@
+{
+  "name": "eventos",
+  "description": "Bronze -> Silver. Inserta solo las observaciones que aún no están en Silver, identificadas por ciudad y hora.",
+  "enabled": true,
+
+  "ingest_type": "batch",
+  "load_type": "incremental",
+
+  "source": {
+    "format": "delta"
+  },
+
+  "_comentario_estrategia": "append_dedup y no full_merge: una observación meteorológica ya publicada no se corrige, solo llega repetida. No hay nada que actualizar, solo que descartar.",
+  "strategy": "append_dedup",
+  "merge_keys": ["ciudad", "hora"],
+
+  "source_contract": "../../tables/bronze/eventos_raw.json",
+  "destination_contract": "../../tables/silver/eventos.json"
+}

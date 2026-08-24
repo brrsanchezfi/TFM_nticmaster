@@ -3,8 +3,8 @@ resources:
     weather_events_pipeline:
       name: "[${bundle.target}] streaming_weather_events_pipeline"
 
-      # Un único job cluster compartido por las tres tareas: se levanta una vez
-      # y se apaga al terminar la última, en vez de pagar tres arranques.
+      # Cuatro tareas sobre un único job cluster: producir, ingerir, promover
+      # y agregar. Se levanta una vez y se apaga al terminar la última.
       job_clusters:
         - job_cluster_key: pipeline_cluster
           new_cluster:
@@ -30,15 +30,36 @@ resources:
               availability: SPOT_WITH_FALLBACK_AZURE
               first_on_demand: 1
 
+      # Cada ejecución captura un lote nuevo. Programarlo cada 15 minutos
+      # convierte el caso en una ingesta continua de verdad; se deja en pausa
+      # para no consumir DBUs fuera de las sesiones de trabajo.
+      schedule:
+        quartz_cron_expression: "0 0/15 * * * ?"
+        timezone_id: "Europe/Madrid"
+        pause_status: PAUSED
+
       tasks:
+        - task_key: poll_api
+          job_cluster_key: pipeline_cluster
+          python_wheel_task:
+            package_name: weather_events
+            entry_point: poll_api
+            named_parameters:
+              # El wheel vive en site-packages: la raíz del bundle (config/ y
+              # contracts/) hay que pasarla explícitamente.
+              bundle-root: ${workspace.file_path}
+              config: config/config.dev.json
+          libraries:
+            - whl: ../dist/*.whl
+
         - task_key: ingest_bronze
+          depends_on:
+            - task_key: poll_api
           job_cluster_key: pipeline_cluster
           python_wheel_task:
             package_name: weather_events
             entry_point: ingest_bronze
             named_parameters:
-              # El wheel vive en site-packages: la raíz del bundle (config/ y
-              # contracts/) hay que pasarla explícitamente.
               bundle-root: ${workspace.file_path}
               config: config/config.dev.json
           libraries:

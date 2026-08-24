@@ -27,6 +27,9 @@ local = [
 # python_wheel_task invoca el job por su entry point, así que cada tarea del
 # workflow necesita el suyo. Sin esto el bundle no puede desplegarse.
 [project.scripts]
+# El productor es una tarea más del workflow: deja el lote de eventos en la
+# landing antes de que Auto Loader los recoja.
+poll_api = "weather_events.jobs.poll_api:main"
 ingest_bronze = "weather_events.jobs.ingest_bronze:main"
 promote_silver = "weather_events.jobs.promote_silver:main"
 build_gold = "weather_events.jobs.build_gold:main"

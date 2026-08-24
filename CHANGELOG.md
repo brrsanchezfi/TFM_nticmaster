@@ -123,3 +123,23 @@
   - Dashboard AI/BI del caso, con el puntero de versiones y la marca de
     recálculo por estado, que es lo que hace visible qué tocó cada ejecución.
   - 15 tests en verde.
+- Fase 8 — Caso de uso Streaming (weather_events):
+  - Ingesta con Auto Loader desde una API pública gratuita (Open-Meteo), sin
+    Kafka ni Event Hubs: el patrón es el mismo —alguien produce, otro consume
+    incrementalmente— pero sin infraestructura de mensajería de pago.
+  - Trigger `availableNow`: procesa lo pendiente y para, en lugar de mantener
+    un cluster encendido esperando ficheros.
+  - Dos marcas temporales por lectura, `hora` (observación) y `capturado_at`
+    (consulta). La API devuelve la misma observación hasta publicar otra, así
+    que sin distinguirlas se contarían varias veces las mismas lecturas.
+  - Estrategia `append_dedup` por `ciudad` + `hora` en vez de `full_merge`: una
+    observación publicada no se corrige, solo llega repetida, así que no hay
+    nada que actualizar.
+  - Las rutas `checkpoint` y `schemas` de Auto Loader apuntan a ADLS. Por
+    defecto DKOps las deja en `/tmp`, que vive en el disco del driver: con
+    clusters efímeros se perdería el estado y cada ejecución reingeriría la
+    landing entera.
+  - El productor tolera que una ciudad falle y continúa con las demás.
+  - `schedule` cada 15 minutos, en pausa para no consumir DBUs.
+  - Dashboard AI/BI del caso.
+  - 8 tests en verde, con la respuesta de la API simulada.

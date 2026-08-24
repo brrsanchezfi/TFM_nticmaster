@@ -1,0 +1,29 @@
+{
+  "catalog": "{catalog.silver}",
+  "schema": "streaming",
+  "name": "eventos",
+  "type": "MANAGED",
+  "format": "DELTA",
+  "comment": "Lecturas meteorológicas deduplicadas por ciudad y hora de observación. El productor consulta la API cada pocos minutos y la API devuelve la misma observación hasta que publica una nueva, así que sin deduplicar habría muchas filas repetidas.",
+
+  "columns": [
+    { "name": "ciudad",       "type": "STRING",  "nullable": false, "comment": "Ciudad de la lectura." },
+    { "name": "latitud",      "type": "DOUBLE",  "comment": "Latitud consultada." },
+    { "name": "longitud",     "type": "DOUBLE",  "comment": "Longitud consultada." },
+    { "name": "hora",         "type": "STRING",  "nullable": false, "comment": "Marca temporal de la observación. Con la ciudad forma la clave de deduplicación." },
+    { "name": "temperatura",  "type": "DOUBLE",  "comment": "Temperatura en grados Celsius." },
+    { "name": "humedad",      "type": "INTEGER", "comment": "Humedad relativa en porcentaje." },
+    { "name": "viento",       "type": "DOUBLE",  "comment": "Velocidad del viento en km/h." },
+    { "name": "codigo_tiempo","type": "INTEGER", "comment": "Código WMO de condición meteorológica." },
+    { "name": "capturado_at", "type": "STRING",  "comment": "Momento de la consulta a la API." },
+
+    { "name": "_ingested_at",   "type": "TIMESTAMP", "comment": "Momento de la ingesta en Bronze." },
+    { "name": "_ingested_date", "type": "DATE",      "comment": "Día de la ingesta en Bronze." },
+    { "name": "_source_file",   "type": "STRING",    "comment": "Fichero de origen." }
+  ],
+
+  "properties": {
+    "delta.autoOptimize.optimizeWrite": "true",
+    "proyecto": "TFM-NTIC-Master"
+  }
+}

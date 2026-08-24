@@ -20,6 +20,9 @@ variables:
   node_type_id:
     description: Tipo de VM del job cluster.
     default: "Standard_D2ads_v6"
+  warehouse_id:
+    description: SQL Warehouse serverless que alimenta el dashboard de consumo.
+    default: "f967691d33fdbcb3"
 
 targets:
   dev:

@@ -1,0 +1,31 @@
+{
+  "catalog": "{catalog.bronze}",
+  "schema": "streaming",
+  "name": "eventos_raw",
+  "type": "MANAGED",
+  "format": "DELTA",
+  "comment": "Lecturas meteorológicas tal y como las devuelve la API pública, ingeridas con Auto Loader. Cada fichero que aparece en la landing se procesa una sola vez.",
+
+  "columns": [
+    { "name": "ciudad",       "type": "STRING",  "nullable": false, "comment": "Ciudad de la lectura." },
+    { "name": "latitud",      "type": "DOUBLE",  "comment": "Latitud consultada." },
+    { "name": "longitud",     "type": "DOUBLE",  "comment": "Longitud consultada." },
+    { "name": "hora",         "type": "STRING",  "comment": "Marca temporal de la observación devuelta por la API, ISO-8601. Junto con la ciudad identifica la lectura." },
+    { "name": "temperatura",  "type": "DOUBLE",  "comment": "Temperatura a 2 metros, en grados Celsius." },
+    { "name": "humedad",      "type": "INTEGER", "comment": "Humedad relativa a 2 metros, en porcentaje." },
+    { "name": "viento",       "type": "DOUBLE",  "comment": "Velocidad del viento a 10 metros, en km/h." },
+    { "name": "codigo_tiempo","type": "INTEGER", "comment": "Código WMO de condición meteorológica." },
+    { "name": "capturado_at", "type": "STRING",  "comment": "Momento en que el productor consultó la API. Distinto de 'hora': la API puede devolver una observación anterior." },
+
+    { "name": "_ingested_at",   "type": "TIMESTAMP", "comment": "Momento de la ingesta. Lo añade DKOps." },
+    { "name": "_ingested_date", "type": "DATE",      "comment": "Día de la ingesta. Columna de partición." },
+    { "name": "_source_file",   "type": "STRING",    "comment": "Fichero de origen. Trazabilidad hasta el JSON crudo." }
+  ],
+
+  "partitions": ["_ingested_date"],
+
+  "properties": {
+    "delta.autoOptimize.optimizeWrite": "true",
+    "proyecto": "TFM-NTIC-Master"
+  }
+}
