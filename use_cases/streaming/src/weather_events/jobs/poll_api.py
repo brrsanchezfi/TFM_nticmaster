@@ -13,7 +13,7 @@ from weather_events.producer.poll_api import recolectar
 
 def main() -> None:
     args = parse_args()
-    launcher, _ = build_engine(args.config, args.bundle_root)
+    launcher, _ = build_engine(args.config, args.bundle_root, proceso="poll_api")
     spark, env = launcher.spark, launcher.env
 
     lecturas = recolectar()

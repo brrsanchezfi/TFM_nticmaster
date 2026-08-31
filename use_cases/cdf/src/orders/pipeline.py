@@ -39,10 +39,11 @@ def resolve_bundle_root(bundle_root: str | None = None) -> Path:
 def build_context(
     config_path: str = DEFAULT_CONFIG,
     bundle_root: str | None = None,
+    proceso: str | None = None,
 ) -> tuple[Launcher, Path]:
     """Arranca el Launcher de DKOps y devuelve también la raíz del bundle."""
     root = resolve_bundle_root(bundle_root)
-    return Launcher(str(root / config_path)), root
+    return Launcher(str(root / config_path), log_filename=proceso), root
 
 
 def contratos(root: Path, env) -> dict[str, TableContract]:

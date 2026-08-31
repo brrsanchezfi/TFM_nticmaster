@@ -1,7 +1,7 @@
 {
   "EXECUTION_ENVIRONMENT": "local",
   "SPARK_APP_NAME": "weather_events-dev",
-  "LOG_DIR": "/tmp/weather_events/logs",
+  "LOG_DIR": "abfss://landing@lakehousedkops.dfs.core.windows.net/tfm/_logs/streaming",
   "environments": {
     "7405612310572963": {
       "env": "dev",
@@ -13,9 +13,12 @@
       },
       "paths": {
         "landing": "abfss://landing@lakehousedkops.dfs.core.windows.net/tfm/streaming",
-        "checkpoint": "abfss://landing@lakehousedkops.dfs.core.windows.net/tfm/_checkpoints/streaming",
-        "schemas": "abfss://landing@lakehousedkops.dfs.core.windows.net/tfm/_schemas/streaming",
-        "ops": "abfss://landing@lakehousedkops.dfs.core.windows.net/tfm/_ops/streaming"
+        "checkpoint": "abfss://landing@lakehousedkops.dfs.core.windows.net/tfm/streaming/_checkpoints",
+        "schemas": "abfss://landing@lakehousedkops.dfs.core.windows.net/tfm/streaming/_schemas",
+        "ops": "abfss://landing@lakehousedkops.dfs.core.windows.net/tfm/_ops/ingestas",
+        "bronze": "abfss://bronze@lakehousedkops.dfs.core.windows.net/bronze_tfm",
+        "silver": "abfss://silver@lakehousedkops.dfs.core.windows.net/silver_tfm",
+        "gold": "abfss://gold@lakehousedkops.dfs.core.windows.net/gold_tfm"
       }
     }
   }
