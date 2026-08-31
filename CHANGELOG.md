@@ -198,6 +198,13 @@
     CDC dos veces seguidas.
   - Creado el schema `gold_tfm.ops` para los metadatos operativos, separado de
     los schemas de negocio.
+  - Diagnosticada una séptima incidencia de DKOps, aún sin corregir: la tabla
+    de control solo recibe filas `STARTED`. `log_success` y `log_failure`
+    construyen su fila sin `started_at`, que el esquema declara
+    `nullable=False`, así que `createDataFrame` aborta con `[CANNOT_BE_NONE]`;
+    el `except` que lo envuelve solo emite un *warning*, de modo que la
+    ingesta termina en verde sin registrar su cierre. Reproducido en local.
+    Documentado en `docs/observabilidad.md` y `docs/estado.md`.
 - Actualización a DKOps v0.3.2:
   - Las tres incidencias reportadas durante el TFM están corregidas: el wheel
     ya declara su versión real, la promoción a Silver genera

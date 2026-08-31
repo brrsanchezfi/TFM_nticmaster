@@ -39,6 +39,9 @@ los cuatro casos. Eso es lo que permite un tablero único en lugar de cuatro.
 
 ### Qué se puede preguntar
 
+Estas son las consultas para las que se diseñó la tabla. **Hoy devuelven cero**
+por la incidencia que se describe más abajo: solo se registran los inicios.
+
 ```sql
 -- Tasa de éxito por caso de uso
 SELECT pipeline,
@@ -124,7 +127,28 @@ Se retiene 30 días y después se pierde. Conservarlo más tiempo exigiría
 configurar `cluster_log_conf` en los jobs, que no se ha hecho: para el alcance
 del TFM, la tabla de control cubre la necesidad de histórico.
 
-## Limitación conocida
+## Limitaciones conocidas
+
+### La tabla solo registra inicios
+
+Contiene 25 filas, **todas `STARTED`**: 13 de `retail_sales`, 7 de
+`weather_events` y 5 de `customers`. Ni una `SUCCESS` ni una `FAILED`, y
+`finished_at` siempre a NULL.
+
+La causa está en `ops_logger.py` de DKOps. El esquema declara `started_at` como
+`nullable=False`, pero `log_success` y `log_failure` construyen su fila sin ese
+campo —lo cual tiene sentido, porque un cierre no reabre el inicio—, así que
+`createDataFrame` aborta con `[CANNOT_BE_NONE]`. El error se captura en un
+`except` que solo emite un *warning*, de modo que **el fallo es silencioso**: la
+ingesta termina bien y nadie se entera de que el cierre no se ha registrado.
+
+Reproducido en local, sin Databricks: la fila `STARTED` pasa y la `SUCCESS`
+lanza la excepción.
+
+Mientras no se corrija, la tabla responde **qué se lanzó y cuándo**, pero no si
+terminó bien ni cuántas filas escribió. Es lo que falta para el tablero.
+
+### CDF no se registra
 
 El caso **CDF no aparece** en la tabla de control. Su pipeline no construye un
 `IngestionEngine` —lee un Change Data Feed en lugar de ingerir desde una
