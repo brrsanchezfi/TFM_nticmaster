@@ -2,8 +2,9 @@
   "catalog": "{catalog.gold}",
   "schema": "cdc",
   "name": "historico_cambios",
-  "type": "MANAGED",
+  "type": "EXTERNAL",
   "format": "DELTA",
+  "location": "{path.gold}/cdc/historico_cambios",
   "comment": "Auditoría de la actividad del sistema origen: cuántas altas, modificaciones y bajas se registraron cada día. Se construye desde Bronze, no desde Silver, porque Silver ya ha colapsado los eventos en la foto actual.",
 
   "columns": [
