@@ -2,8 +2,9 @@
   "catalog": "{catalog.silver}",
   "schema": "cdf",
   "name": "pedidos",
-  "type": "MANAGED",
+  "type": "EXTERNAL",
   "format": "DELTA",
+  "location": "{path.silver}/cdf/pedidos",
   "comment": "Pedidos con Change Data Feed activo. Es la tabla origen del caso CDF: sobre ella se aplican INSERT/UPDATE/DELETE y Delta registra cada cambio para que Gold pueda propagarlos sin releer la tabla entera.",
 
   "change_data_feed": true,

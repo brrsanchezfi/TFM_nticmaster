@@ -56,7 +56,7 @@ def _carga_inicial(spark, origen, agregado) -> None:
 
 def main() -> None:
     args = parse_args()
-    launcher, root = build_context(args.config, args.bundle_root)
+    launcher, root = build_context(args.config, args.bundle_root, proceso="propagate_cdf")
     spark = launcher.spark
     cts = contratos(root, launcher.env)
 

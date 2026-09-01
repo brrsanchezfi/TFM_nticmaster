@@ -2,8 +2,9 @@
   "catalog": "{catalog.gold}",
   "schema": "streaming",
   "name": "metricas",
-  "type": "MANAGED",
+  "type": "EXTERNAL",
   "format": "DELTA",
+  "location": "{path.gold}/streaming/metricas",
   "comment": "Métricas meteorológicas agregadas por ciudad y ventana horaria. Es la capa de consumo del caso streaming.",
 
   "columns": [

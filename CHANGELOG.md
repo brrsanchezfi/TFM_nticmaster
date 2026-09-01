@@ -173,6 +173,51 @@
     generar lotes degenerados en silencio.
   - Rutas del caso reorganizadas bajo `tfm/cdc/`, con landing, checkpoints,
     schemas y ops juntos.
+- Tablas externas con convención de rutas legible:
+  - Los 13 contratos pasan a `type: EXTERNAL` con `location` derivada del
+    nombre lógico: `abfss://<capa>@.../<catálogo>/<esquema>/<tabla>`. Antes
+    quedaban gestionadas en `__unitystorage/catalogs/<uuid>/`, ilegible y
+    desligado del nombre de la tabla.
+  - Reportado a DKOps que solo `CreateWriter` respetaba `type` y `location`:
+    los caminos de append, upsert y streaming creaban la tabla desde el
+    esquema del DataFrame. Corregido en v0.3.3.
+  - Documentadas dos restricciones de Unity Catalog que costaron varios
+    ciclos: `DROP TABLE` sobre una tabla externa **no borra los ficheros**, y
+    un volumen y una tabla externa **no pueden compartir ruta** en ninguna de
+    las dos direcciones. De ahí el orden obligatorio para reconstruir el
+    entorno, recogido en `docs/infraestructura.md`.
+- Observabilidad:
+  - Registro de ejecuciones centralizado: los cuatro casos escriben en la
+    misma tabla Delta de control, que la columna `pipeline` distingue. Es la
+    fuente para un futuro tablero de operación.
+  - Logs de aplicación segmentados por caso de uso y subproceso, de modo que
+    se puede seguir una tarea concreta sin bucear en la traza completa.
+  - `LOG_DIR` apunta a `abfss://` y **no a un volumen**: los volúmenes no
+    admiten añadir a un fichero existente, así que la segunda ejecución de un
+    mismo caso se quedaba bloqueada sin error ni traza. Verificado ejecutando
+    CDC dos veces seguidas.
+  - Creado el schema `gold_tfm.ops` para los metadatos operativos, separado de
+    los schemas de negocio.
+  - Diagnosticada y corregida una séptima incidencia de DKOps: la tabla de
+    control solo recibía filas `STARTED`. `log_success` y `log_failure`
+    construyen su fila sin `started_at`, que el esquema declaraba
+    `nullable=False`, así que `createDataFrame` abortaba con
+    `[CANNOT_BE_NONE]`; el `except` que lo envolvía solo emitía un *warning*,
+    de modo que la ingesta terminaba en verde sin registrar su cierre.
+    Reproducido en local con `createDataFrame` a secas, lo que descartó que
+    fuera cosa del entorno.
+- Actualización a DKOps v0.3.4:
+  - El registro operativo anota los cierres. `started_at` pasa a nullable y el
+    logger lo recuerda por `run_id` para repetirlo en la fila de cierre: la
+    duración sale de una resta sobre la propia fila, sin self-join.
+  - El `except` de `_write_row` sube de `warning` a `error` y añade el tipo de
+    excepción. Era lo que faltaba para que el fallo dejara de ser invisible.
+  - Incluye el test de integración que faltaba, con Spark y Delta reales: los
+    de mocks pasaban en verde porque `createDataFrame` sobre un `MagicMock`
+    nunca falla.
+  - Verificado en Databricks: `SUCCESS | rows_written=525`, con las duraciones
+    ya calculables desde la fila.
+  - 48 tests en verde con la nueva versión.
 - Actualización a DKOps v0.3.2:
   - Las tres incidencias reportadas durante el TFM están corregidas: el wheel
     ya declara su versión real, la promoción a Silver genera

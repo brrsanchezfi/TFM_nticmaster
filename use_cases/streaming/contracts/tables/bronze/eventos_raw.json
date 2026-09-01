@@ -2,8 +2,9 @@
   "catalog": "{catalog.bronze}",
   "schema": "streaming",
   "name": "eventos_raw",
-  "type": "MANAGED",
+  "type": "EXTERNAL",
   "format": "DELTA",
+  "location": "{path.bronze}/streaming/eventos_raw",
   "comment": "Lecturas meteorológicas tal y como las devuelve la API pública, ingeridas con Auto Loader. Cada fichero que aparece en la landing se procesa una sola vez.",
 
   "columns": [

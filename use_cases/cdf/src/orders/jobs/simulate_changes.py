@@ -40,7 +40,7 @@ def _semilla(spark, tabla: str, lote: int) -> int:
 
 def main() -> None:
     args = parse_args()
-    launcher, root = build_context(args.config, args.bundle_root)
+    launcher, root = build_context(args.config, args.bundle_root, proceso="simulate_changes")
     spark = launcher.spark
     cts = contratos(root, launcher.env)
 

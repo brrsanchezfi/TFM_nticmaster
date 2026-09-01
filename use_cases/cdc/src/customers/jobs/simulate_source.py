@@ -27,7 +27,7 @@ CAMPOS_ORIGEN = ["cliente_id", "nombre", "email", "ciudad", "segmento", "fecha_a
 
 def main() -> None:
     args = parse_args()
-    launcher, _ = build_engine(args.config, args.bundle_root)
+    launcher, _ = build_engine(args.config, args.bundle_root, proceso="simulate_source")
     spark, env = launcher.spark, launcher.env
 
     silver = f"{env.get_catalog('silver')}.cdc.clientes_current"

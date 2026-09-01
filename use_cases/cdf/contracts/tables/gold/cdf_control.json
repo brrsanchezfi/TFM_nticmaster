@@ -2,8 +2,9 @@
   "catalog": "{catalog.gold}",
   "schema": "cdf",
   "name": "cdf_control",
-  "type": "MANAGED",
+  "type": "EXTERNAL",
   "format": "DELTA",
+  "location": "{path.gold}/cdf/cdf_control",
   "comment": "Puntero de lectura del Change Data Feed: guarda hasta qué versión de la tabla origen se ha propagado ya. Es lo que convierte el proceso en incremental — sin este estado, cada ejecución tendría que releer el feed completo.",
 
   "columns": [
