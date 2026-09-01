@@ -61,9 +61,25 @@ Delta de control común a los cuatro casos —la columna `pipeline` los distingu
 y un log de texto por caso de uso y subproceso en
 `abfss://…/tfm/_logs/<caso>/<subproceso>.log`.
 
-Verificado en el almacenamiento: `batch` y `cdc` escriben sus logs segmentados
-correctamente. `cdf` tiene el directorio creado pero vacío y `streaming` aún no
-lo tiene: ninguno de los dos ha vuelto a ejecutarse desde el cambio.
+Los cuatro casos están desplegados con v0.3.4 y ejecutados. La tabla de control
+registra ya aperturas y cierres de los tres pipelines que construyen un
+`IngestionEngine`:
+
+| Pipeline | STARTED | SUCCESS |
+|---|---|---|
+| `retail_sales` | 15 | 2 |
+| `weather_events` | 9 | 2 |
+| `customers` | 7 | 2 |
+
+El desequilibrio entre columnas es histórico: las filas anteriores a v0.3.4
+quedaron sin su cierre y no se han borrado, porque documentan el fallo.
+
+Los cuatro directorios de logs existen y están segmentados por subproceso.
+**Varios ficheros quedan a 0 bytes**, siempre los de las primeras tareas de cada
+job: en `batch` el `ingest_bronze.log` estuvo a 0 tras una ejecución y se llenó
+en la siguiente, lo que apunta a que el manejador de nube —que sincroniza con
+`dbutils.fs.put` cada 5 mensajes— pierde lo pendiente al terminar el proceso.
+Pendiente de confirmar.
 
 ## Criterios de éxito
 
@@ -80,7 +96,7 @@ Del núcleo evaluable, **7 de 8**:
 
 ## Incidencias reportadas a DKOps
 
-Siete detectadas durante la implementación, **seis corregidas**:
+Siete detectadas durante la implementación, **las siete corregidas**:
 
 | # | Incidencia | Corregida en |
 |---|---|---|
@@ -90,7 +106,7 @@ Siete detectadas durante la implementación, **seis corregidas**:
 | 4 | `cdc_merge` dejaba `is_deleted` a NULL si la columna venía en el DataFrame | v0.3.3 |
 | 5 | `license = "MIT"` (PEP 639) exigía `setuptools>=77` con `build-system` en `>=68` | v0.3.2 |
 | 6 | Solo `CreateWriter` respetaba `type: EXTERNAL` y `location` del contrato | v0.3.3 |
-| 7 | `log_success` y `log_failure` no escriben nunca en la tabla de control | pendiente |
+| 7 | `log_success` y `log_failure` no escriben nunca en la tabla de control | v0.3.4 |
 
 La quinta es la más instructiva: se introdujo **al corregir las tres primeras**
 y solo se manifestaba en el cluster, no en un entorno de desarrollo. Ninguna
@@ -98,22 +114,29 @@ tarea llegaba a arrancar.
 
 ### La séptima, en detalle
 
-La tabla de control solo contiene filas `STARTED`: 13 de `retail_sales`, 7 de
-`weather_events`, 5 de `customers`, y ninguna `SUCCESS` ni `FAILED`.
+Durante 25 ejecuciones la tabla de control solo acumuló filas `STARTED`, con
+`finished_at` a NULL: ninguna `SUCCESS` ni `FAILED`.
 
-La causa está en `ops_logger.py`. El esquema declara `started_at` como
-`nullable=False`, pero `log_success` y `log_failure` construyen la fila sin ese
-campo, de modo que `createDataFrame` aborta con `[CANNOT_BE_NONE]`. El error se
-captura en un `except` que solo registra un *warning*, así que **el fallo es
-silencioso**: la ingesta termina bien y nadie se entera de que el cierre no se
-ha registrado.
+La causa estaba en `ops_logger.py`. El esquema declaraba `started_at` como
+`nullable=False`, pero `log_success` y `log_failure` construyen su fila sin ese
+campo —un cierre no reabre el inicio—, de modo que `createDataFrame` abortaba
+con `[CANNOT_BE_NONE]`. El error lo capturaba un `except` que solo emitía un
+*warning*, así que **el fallo era silencioso**: la ingesta terminaba en verde y
+nadie se enteraba de que el cierre no se había registrado.
 
-Reproducido en local con `createDataFrame` a secas, sin Databricks: la fila
-`STARTED` pasa y la `SUCCESS` lanza la excepción.
+Se reprodujo en local con `createDataFrame` a secas, sin Databricks: la fila
+`STARTED` pasaba y la `SUCCESS` lanzaba la excepción. Eso descartó que fuera
+cosa del entorno.
 
-Mientras no se corrija, la tabla sirve para saber **qué se lanzó y cuándo**,
-pero no si terminó bien ni cuántas filas escribió. Es la única pieza que le
-falta al tablero de operación.
+Corregido en v0.3.4, que adopta las tres correcciones propuestas: `started_at`
+pasa a nullable, el logger lo recuerda por `run_id` y lo repite en el cierre
+—de modo que la duración sale de una resta y no de un self-join— y el `except`
+sube de `warning` a `error` con el tipo de excepción. Se añadió además el test
+de integración que faltaba: los de mocks pasaban en verde porque
+`createDataFrame` sobre un `MagicMock` nunca falla.
+
+Verificado en Databricks tras actualizar: `SUCCESS | rows_written=525`, con las
+duraciones ya calculables desde la propia fila.
 
 ## Fallos que solo aparecieron al ejecutar
 
@@ -166,8 +189,9 @@ los recursos o documentar Terraform como demostración de IaC.
 
 ## Deuda técnica
 
-- La tabla de control no registra cierres (incidencia 7). Sin eso, el tablero
-  de operación no se puede construir.
+- Algunos ficheros de log quedan a 0 bytes, siempre los de las primeras tareas
+  de cada job. Sospecha: el manejador de nube sincroniza cada 5 mensajes y no
+  vacía lo pendiente al terminar el proceso.
 - CDF no aparece en la tabla de control: su pipeline no construye un
   `IngestionEngine`, así que no instancia el registro de operaciones.
 - Los 5 workflows de GitHub Actions siguen siendo ficheros de 10 líneas.

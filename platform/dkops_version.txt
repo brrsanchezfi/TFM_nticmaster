@@ -2,7 +2,7 @@
 # Se fija un tag concreto, nunca "main", para que el proyecto sea reproducible.
 #
 # Instalación:
-#   pip install "dkops[local] @ git+https://github.com/brrsanchezfi/DKOps.git@v0.3.3"
+#   pip install "dkops[local] @ git+https://github.com/brrsanchezfi/DKOps.git@v0.3.4"
 #
 # El extra [local] añade pyspark 3.5.3 y delta-spark 3.2.0 para desarrollo y
 # tests offline. En Databricks NO se instala ese extra: pyspark lo aporta el
@@ -29,5 +29,11 @@
 #            DataFrame, `AppendWriter` aplica la metadata del contrato, y
 #            `cdc_merge` garantiza que `is_deleted` llegue a Silver como true
 #            o false, nunca NULL.
+#   v0.3.4 — el registro operativo anota los cierres. `started_at` pasa a
+#            nullable y el logger lo recuerda por `run_id` para repetirlo en la
+#            fila de cierre, de modo que la duración sale de una resta y no de
+#            un self-join. El `except` que envolvía la escritura pasa de
+#            `warning` a `error` con el tipo de excepción: es lo que convirtió
+#            el fallo en invisible durante 25 ejecuciones.
 
-v0.3.2
+v0.3.4

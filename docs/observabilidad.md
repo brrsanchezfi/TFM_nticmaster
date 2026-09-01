@@ -39,9 +39,6 @@ los cuatro casos. Eso es lo que permite un tablero único en lugar de cuatro.
 
 ### Qué se puede preguntar
 
-Estas son las consultas para las que se diseñó la tabla. **Hoy devuelven cero**
-por la incidencia que se describe más abajo: solo se registran los inicios.
-
 ```sql
 -- Tasa de éxito por caso de uso
 SELECT pipeline,
@@ -127,26 +124,36 @@ Se retiene 30 días y después se pierde. Conservarlo más tiempo exigiría
 configurar `cluster_log_conf` en los jobs, que no se ha hecho: para el alcance
 del TFM, la tabla de control cubre la necesidad de histórico.
 
+## Por qué el registro tardó en funcionar
+
+Durante 25 ejecuciones la tabla acumuló solo filas `STARTED`. El esquema de
+DKOps declaraba `started_at` como `nullable=False`, pero un cierre no reabre el
+inicio: `log_success` construía su fila sin ese campo y `createDataFrame`
+abortaba con `[CANNOT_BE_NONE]`. El error lo tragaba un `except` que solo emitía
+un *warning*.
+
+Es el mismo modo de fallo que ya nos había costado caro con `is_deleted`: **la
+ejecución termina en verde y el dato es incorrecto**. Aquí, además, el afectado
+era justo el mecanismo que existe para detectar ese tipo de cosas.
+
+Corregido en DKOps v0.3.4. Ahora el logger recuerda el `started_at` de cada
+`run_id` y lo repite en la fila de cierre, así que la duración sale de una
+resta sobre la propia fila y no de un self-join. Y el `except` emite `error`
+con el tipo de excepción, que era lo que faltaba para que el fallo fuese
+visible.
+
 ## Limitaciones conocidas
 
-### La tabla solo registra inicios
+### Ficheros de log a 0 bytes
 
-Contiene 25 filas, **todas `STARTED`**: 13 de `retail_sales`, 7 de
-`weather_events` y 5 de `customers`. Ni una `SUCCESS` ni una `FAILED`, y
-`finished_at` siempre a NULL.
+Los cuatro directorios existen y están segmentados por subproceso, pero varios
+ficheros quedan vacíos: siempre los de las primeras tareas de cada job. En
+`batch`, el `ingest_bronze.log` estuvo a 0 tras una ejecución y apareció con
+2,9 KB en la siguiente.
 
-La causa está en `ops_logger.py` de DKOps. El esquema declara `started_at` como
-`nullable=False`, pero `log_success` y `log_failure` construyen su fila sin ese
-campo —lo cual tiene sentido, porque un cierre no reabre el inicio—, así que
-`createDataFrame` aborta con `[CANNOT_BE_NONE]`. El error se captura en un
-`except` que solo emite un *warning*, de modo que **el fallo es silencioso**: la
-ingesta termina bien y nadie se entera de que el cierre no se ha registrado.
-
-Reproducido en local, sin Databricks: la fila `STARTED` pasa y la `SUCCESS`
-lanza la excepción.
-
-Mientras no se corrija, la tabla responde **qué se lanzó y cuándo**, pero no si
-terminó bien ni cuántas filas escribió. Es lo que falta para el tablero.
+La sospecha es el manejador de nube, que sincroniza con `dbutils.fs.put` cada 5
+mensajes y no parece vaciar lo pendiente al terminar el proceso. Está sin
+confirmar.
 
 ### CDF no se registra
 

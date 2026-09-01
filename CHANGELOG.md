@@ -198,13 +198,26 @@
     CDC dos veces seguidas.
   - Creado el schema `gold_tfm.ops` para los metadatos operativos, separado de
     los schemas de negocio.
-  - Diagnosticada una séptima incidencia de DKOps, aún sin corregir: la tabla
-    de control solo recibe filas `STARTED`. `log_success` y `log_failure`
-    construyen su fila sin `started_at`, que el esquema declara
-    `nullable=False`, así que `createDataFrame` aborta con `[CANNOT_BE_NONE]`;
-    el `except` que lo envuelve solo emite un *warning*, de modo que la
-    ingesta termina en verde sin registrar su cierre. Reproducido en local.
-    Documentado en `docs/observabilidad.md` y `docs/estado.md`.
+  - Diagnosticada y corregida una séptima incidencia de DKOps: la tabla de
+    control solo recibía filas `STARTED`. `log_success` y `log_failure`
+    construyen su fila sin `started_at`, que el esquema declaraba
+    `nullable=False`, así que `createDataFrame` abortaba con
+    `[CANNOT_BE_NONE]`; el `except` que lo envolvía solo emitía un *warning*,
+    de modo que la ingesta terminaba en verde sin registrar su cierre.
+    Reproducido en local con `createDataFrame` a secas, lo que descartó que
+    fuera cosa del entorno.
+- Actualización a DKOps v0.3.4:
+  - El registro operativo anota los cierres. `started_at` pasa a nullable y el
+    logger lo recuerda por `run_id` para repetirlo en la fila de cierre: la
+    duración sale de una resta sobre la propia fila, sin self-join.
+  - El `except` de `_write_row` sube de `warning` a `error` y añade el tipo de
+    excepción. Era lo que faltaba para que el fallo dejara de ser invisible.
+  - Incluye el test de integración que faltaba, con Spark y Delta reales: los
+    de mocks pasaban en verde porque `createDataFrame` sobre un `MagicMock`
+    nunca falla.
+  - Verificado en Databricks: `SUCCESS | rows_written=525`, con las duraciones
+    ya calculables desde la fila.
+  - 48 tests en verde con la nueva versión.
 - Actualización a DKOps v0.3.2:
   - Las tres incidencias reportadas durante el TFM están corregidas: el wheel
     ya declara su versión real, la promoción a Silver genera
