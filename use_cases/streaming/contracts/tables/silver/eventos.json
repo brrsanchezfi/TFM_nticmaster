@@ -2,8 +2,9 @@
   "catalog": "{catalog.silver}",
   "schema": "streaming",
   "name": "eventos",
-  "type": "MANAGED",
+  "type": "EXTERNAL",
   "format": "DELTA",
+  "location": "{path.silver}/streaming/eventos",
   "comment": "Lecturas meteorológicas deduplicadas por ciudad y hora de observación. El productor consulta la API cada pocos minutos y la API devuelve la misma observación hasta que publica una nueva, así que sin deduplicar habría muchas filas repetidas.",
 
   "columns": [

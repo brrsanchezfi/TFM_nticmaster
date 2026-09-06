@@ -12,7 +12,7 @@ requires-python = ">=3.10"
 # instala sin extras: su única dependencia real es loguru.
 # Versión fijada en platform/dkops_version.txt.
 dependencies = [
-  "dkops @ git+https://github.com/brrsanchezfi/DKOps.git@v0.3.2",
+  "dkops @ git+https://github.com/brrsanchezfi/DKOps.git@v0.3.4",
 ]
 
 [project.optional-dependencies]
@@ -20,7 +20,7 @@ dependencies = [
 # y delta-spark 3.2.0 con versiones exactas: no se repiten aquí para no
 # arriesgar un desajuste con las que la librería declara.
 local = [
-  "dkops[local] @ git+https://github.com/brrsanchezfi/DKOps.git@v0.3.2",
+  "dkops[local] @ git+https://github.com/brrsanchezfi/DKOps.git@v0.3.4",
   "pytest>=7.0",
 ]
 

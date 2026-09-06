@@ -103,6 +103,53 @@ Hay dos salidas, y ambas dejan el caso de uso CDC igual de bien demostrado:
   patrón `cdc_merge` sobre la capa Silver —incluido el *soft delete*—, y ese
   patrón es idéntico venga el cambio de Change Tracking o de un fichero.
 
+## Tablas externas y convención de rutas
+
+Las 13 tablas del TFM se declaran `EXTERNAL` en su contrato, con una ubicación
+que reproduce su nombre lógico:
+
+    abfss://<capa>@lakehousedkops.dfs.core.windows.net/<catálogo>/<esquema>/<tabla>
+
+Por ejemplo, `silver_tfm.batch.ventas` vive en
+`abfss://silver@…/silver_tfm/batch/ventas`. Frente a dejarlas gestionadas
+—donde Unity Catalog las coloca en `__unitystorage/catalogs/<uuid>/…`— esto
+aporta dos cosas: el almacenamiento es legible sin consultar el catálogo, y el
+ciclo de vida del dato queda bajo control del proyecto.
+
+Esa segunda parte tiene una contrapartida que conviene tener presente:
+
+**`DROP TABLE` sobre una tabla externa no borra los ficheros.** Elimina el
+registro del catálogo y deja los datos Delta en su ruta. Al recrear la tabla,
+el `CREATE OR REPLACE` choca con lo que quedó:
+
+    DELTA_CREATE_TABLE_SCHEME_MISMATCH
+    The specified schema does not match the existing schema at abfss://…
+
+Con tablas gestionadas el borrado se lleva los datos; con externas, vaciar el
+almacenamiento es responsabilidad de quien opera.
+
+### Volúmenes y tablas no pueden compartir ruta
+
+Para borrar ficheros hace falta acceso POSIX, y eso significa un volumen de
+Unity Catalog. Pero un volumen y una tabla externa **no pueden convivir en la
+misma ruta**: crear una tabla dentro del territorio de un volumen falla con
+
+    Unsupported path operation PATH_CREATE_TABLE on volume
+
+Y al revés: UC rechaza crear un volumen sobre una ruta que ya contiene tablas
+externas registradas. El orden para reconstruir el entorno desde cero es, por
+tanto:
+
+1. `DROP` de las tablas — antes, el volumen se rechaza por solapamiento.
+2. Crear el volumen sobre la raíz de la capa.
+3. Borrar los ficheros.
+4. **Eliminar el volumen** — si se queda, bloquea la creación de las tablas.
+5. Ejecutar los pipelines, que recrean las tablas en su ruta.
+
+Los volúmenes que sí permanecen en el proyecto cubren únicamente el contenedor
+`landing`, donde no vive ninguna tabla: la zona de aterrizaje de batch y CDC, y
+la carpeta de logs.
+
 ## Coste
 
 Los únicos recursos que el TFM añade son objetos de Unity Catalog, que **no

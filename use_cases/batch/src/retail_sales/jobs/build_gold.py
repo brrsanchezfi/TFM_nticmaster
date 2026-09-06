@@ -9,7 +9,7 @@ from retail_sales.transformations import gold_metrics
 
 def main() -> None:
     args = parse_args()
-    launcher, _ = build_engine(args.config, args.bundle_root)
+    launcher, _ = build_engine(args.config, args.bundle_root, proceso="build_gold")
     gold_metrics.build(
         launcher.spark,
         launcher.env,

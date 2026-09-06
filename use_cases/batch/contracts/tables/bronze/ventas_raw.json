@@ -2,8 +2,9 @@
   "catalog": "{catalog.bronze}",
   "schema": "batch",
   "name": "ventas_raw",
-  "type": "MANAGED",
+  "type": "EXTERNAL",
   "format": "DELTA",
+  "location": "{path.bronze}/batch/ventas_raw",
   "comment": "Ventas retail tal y como llegan de la landing zone. Los tipos se mantienen próximos al origen JSON: la conversión a tipos de negocio se hace en Silver.",
 
   "columns": [

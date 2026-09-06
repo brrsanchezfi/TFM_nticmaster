@@ -4,7 +4,7 @@ from customers.pipeline import build_engine, parse_args
 
 def main() -> None:
     args = parse_args()
-    _, engine = build_engine(args.config, args.bundle_root)
+    _, engine = build_engine(args.config, args.bundle_root, proceso="ingest_bronze")
     failed = engine.ingest_bronze()
     if failed:
         raise RuntimeError(f"Ingesta a Bronze fallida en: {failed}")

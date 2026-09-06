@@ -2,8 +2,9 @@
   "catalog": "{catalog.gold}",
   "schema": "cdc",
   "name": "clientes_activos",
-  "type": "MANAGED",
+  "type": "EXTERNAL",
   "format": "DELTA",
+  "location": "{path.gold}/cdc/clientes_activos",
   "comment": "Cartera de clientes por segmento y ciudad, separando activos de bajas. El soft-delete de Silver es lo que permite contar ambas cosas: con un borrado físico, las bajas serían invisibles.",
 
   "columns": [

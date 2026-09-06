@@ -2,8 +2,9 @@
   "catalog": "{catalog.gold}",
   "schema": "cdf",
   "name": "pedidos_agregado",
-  "type": "MANAGED",
+  "type": "EXTERNAL",
   "format": "DELTA",
+  "location": "{path.gold}/cdf/pedidos_agregado",
   "comment": "Agregado de pedidos por estado. Se mantiene de forma incremental: cada ejecución recalcula únicamente los estados afectados por los cambios que reporta el Change Data Feed, en lugar de reconstruir la tabla entera.",
 
   "columns": [

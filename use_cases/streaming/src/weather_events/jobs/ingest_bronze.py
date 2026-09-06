@@ -9,7 +9,7 @@ from weather_events.pipeline import build_engine, parse_args
 
 def main() -> None:
     args = parse_args()
-    _, engine = build_engine(args.config, args.bundle_root)
+    _, engine = build_engine(args.config, args.bundle_root, proceso="ingest_bronze")
     engine.run_streaming()
 
 

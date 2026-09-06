@@ -2,8 +2,9 @@
   "catalog": "{catalog.bronze}",
   "schema": "cdc",
   "name": "clientes_raw",
-  "type": "MANAGED",
+  "type": "EXTERNAL",
   "format": "DELTA",
+  "location": "{path.bronze}/cdc/clientes_raw",
   "comment": "Histórico completo de eventos de cambio sobre la tabla de clientes del sistema origen. Es append-only: aquí no se actualiza ni se borra nada, cada evento queda registrado. La foto actual de cada cliente se construye en Silver.",
 
   "columns": [

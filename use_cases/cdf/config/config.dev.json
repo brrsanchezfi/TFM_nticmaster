@@ -9,7 +9,14 @@
         "bronze": "bronze_tfm",
         "silver": "silver_tfm",
         "gold": "gold_tfm"
+      },
+      "paths": {
+        "ops": "abfss://landing@lakehousedkops.dfs.core.windows.net/tfm/_ops/ingestas",
+        "bronze": "abfss://bronze@lakehousedkops.dfs.core.windows.net/bronze_tfm",
+        "silver": "abfss://silver@lakehousedkops.dfs.core.windows.net/silver_tfm",
+        "gold": "abfss://gold@lakehousedkops.dfs.core.windows.net/gold_tfm"
       }
     }
-  }
+  },
+  "LOG_DIR": "abfss://landing@lakehousedkops.dfs.core.windows.net/tfm/_logs/cdf"
 }

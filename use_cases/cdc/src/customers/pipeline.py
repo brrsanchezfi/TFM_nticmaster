@@ -50,10 +50,16 @@ def _ruta(env, nombre: str, fallback: str) -> str:
 def build_engine(
     config_path: str = DEFAULT_CONFIG,
     bundle_root: str | None = None,
+    proceso: str | None = None,
 ) -> tuple[Launcher, IngestionEngine]:
-    """Devuelve el Launcher (dueño de la SparkSession) y el engine ya cableado."""
+    """Devuelve el Launcher (dueño de la SparkSession) y el engine ya cableado.
+
+    ``proceso`` da nombre al fichero de log. Con LOG_DIR apuntando a la carpeta
+    del caso de uso, cada subproceso escribe su propia traza y se puede seguir
+    una tarea concreta sin bucear en el log de todo el pipeline.
+    """
     root = resolve_bundle_root(bundle_root)
-    launcher = Launcher(str(root / config_path))
+    launcher = Launcher(str(root / config_path), log_filename=proceso)
     env = launcher.env
 
     def loader(contracts_dir: str) -> IngestionContractLoader:

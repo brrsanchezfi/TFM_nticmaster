@@ -2,8 +2,9 @@
   "catalog": "{catalog.silver}",
   "schema": "batch",
   "name": "ventas",
-  "type": "MANAGED",
+  "type": "EXTERNAL",
   "format": "DELTA",
+  "location": "{path.silver}/batch/ventas",
   "comment": "Ventas retail curadas y deduplicadas por venta_id. Una fila por venta, siempre la última versión conocida.",
 
   "columns": [

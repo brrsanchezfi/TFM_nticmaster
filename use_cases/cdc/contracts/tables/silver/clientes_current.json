@@ -2,8 +2,9 @@
   "catalog": "{catalog.silver}",
   "schema": "cdc",
   "name": "clientes_current",
-  "type": "MANAGED",
+  "type": "EXTERNAL",
   "format": "DELTA",
+  "location": "{path.silver}/cdc/clientes_current",
   "comment": "Foto actual de cada cliente: una fila por cliente_id con su último estado conocido. Las bajas no se borran, se marcan con is_deleted — así el histórico sigue siendo auditable y las claves foráneas de otras tablas no se rompen.",
 
   "columns": [
