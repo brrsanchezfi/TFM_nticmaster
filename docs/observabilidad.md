@@ -70,13 +70,29 @@ caso, segmentado por caso de uso, y el nombre del fichero lo da el subproceso:
     LOG_DIR = abfss://landing@lakehousedkops.dfs.core.windows.net/tfm/_logs/<caso>
 
     tfm/_logs/
-    ├── batch/      ingest_bronze.log, promote_silver.log, build_gold.log
-    ├── streaming/  poll_api.log, ingest_bronze.log, promote_silver.log, build_gold.log
-    ├── cdc/        simulate_source.log, ingest_bronze.log, promote_silver.log, build_gold.log
-    └── cdf/        simulate_changes.log, propagate_cdf.log
+    ├── batch/      ingest_bronze, promote_silver, build_gold
+    ├── streaming/  poll_api, ingest_bronze, promote_silver, build_gold
+    ├── cdc/        simulate_source, ingest_bronze, promote_silver, build_gold
+    └── cdf/        simulate_changes, propagate_cdf
 
 Así se puede seguir una tarea concreta sin bucear en la traza de todo el
 pipeline.
+
+### Un fichero por tramo, no por subproceso
+
+Desde DKOps v0.3.5 cada sincronización escribe **un objeto nuevo** en lugar de
+reescribir el fichero del subproceso:
+
+    ingest_bronze.20260906T023042Z-a3f1c9.0001.log
+    ingest_bronze.20260906T023042Z-a3f1c9.0002.log
+    ...
+
+El token del medio identifica la ejecución. Se reconstruye la traza completa
+con `AppLogger.read_cloud_log(spark, log_dir, "ingest_bronze")`.
+
+El motivo está en la sección siguiente: el diseño anterior reescribía el
+fichero entero en cada sincronización, y eso convertía un fallo puntual en la
+pérdida de todo el histórico.
 
 ### Por qué no un volumen de Unity Catalog
 
@@ -142,18 +158,46 @@ resta sobre la propia fila y no de un self-join. Y el `except` emite `error`
 con el tipo de excepción, que era lo que faltaba para que el fallo fuese
 visible.
 
-## Limitaciones conocidas
+## Por qué los logs se perdían enteros
 
-### Ficheros de log a 0 bytes
+De 13 ficheros de log, 5 quedaron a 0 bytes. Lo desconcertante era que la tarea
+terminaba en `SUCCESS` y su propio stdout mostraba cuatro escrituras correctas,
+con el contenido creciendo:
 
-Los cuatro directorios existen y están segmentados por subproceso, pero varios
-ficheros quedan vacíos: siempre los de las primeras tareas de cada job. En
-`batch`, el `ingest_bronze.log` estuvo a 0 tras una ejecución y apareció con
-2,9 KB en la siguiente.
+```
+Wrote 693 bytes.
+Wrote 1387 bytes.
+Wrote 2216 bytes.
+Wrote 2965 bytes.     ← última línea del proceso
+```
 
-La sospecha es el manejador de nube, que sincroniza con `dbutils.fs.put` cada 5
-mensajes y no parece vaciar lo pendiente al terminar el proceso. Está sin
-confirmar.
+El diagnóstico salió de comparar las cuatro tareas de una misma ejecución:
+
+| tarea | último `Wrote` | fichero real |
+|---|---|---|
+| `poll_api` | 2211 | 2211 |
+| `ingest_bronze` | 2965 | **0** |
+| `promote_silver` | 3392 | 3392 |
+| `build_gold` | 2931 | 2931 |
+
+Tres de cuatro coinciden exactamente. Lo que distingue a la cuarta es que su
+sincronización fue **lo último que hizo el proceso**: las otras siguieron
+registrando mensajes después, así que la escritura tuvo tiempo de confirmarse.
+
+`dbutils.fs.put` con `overwrite=True` trunca el destino antes de volcar y
+devuelve el control antes de confirmar el blob. Si el proceso muere en esa
+ventana, el fichero queda vacío. Y como **cada sincronización reescribía el
+fichero entero**, no se perdía el último tramo: se perdía todo.
+
+Ese es el fallo de diseño, y es el que corrige v0.3.5 escribiendo por tramos.
+La carrera sigue existiendo —no depende de DKOps—, pero ahora cuesta un tramo
+en vez del histórico completo.
+
+Es la tercera vez en el proyecto que un fallo del subsistema de observabilidad
+resulta invisible, y merece quedar dicho: **el componente que existe para dejar
+constancia era el que peor informaba de sus propios fallos**.
+
+## Limitación conocida
 
 ### CDF no se registra
 

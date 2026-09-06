@@ -1,6 +1,6 @@
 # Estado del proyecto
 
-Última actualización: 30 de agosto de 2026.
+Última actualización: 5 de septiembre de 2026.
 
 ## Roadmap
 
@@ -17,7 +17,7 @@
 | 8 | Caso de uso **Streaming** | ✅ ejecutado end-to-end |
 | 8b | Tablas externas y observabilidad centralizada | 🔶 en revisión (PR abierto) |
 | 9 | CI/CD (GitHub Actions) | ⬜ workflows vacíos |
-| 10 | Documentación final | 🔶 6 de 14 páginas |
+| 10 | Documentación final | 🔶 8 de 15 páginas |
 | 11 | Revisión y defensa | ⬜ |
 
 ## Lo que funciona hoy
@@ -29,13 +29,13 @@ los tres catálogos.
 | Caso | Estrategia | Bronze | Silver | Gold |
 |---|---|---|---|---|
 | Batch | `full_merge` | 525 | 500 | 249 |
-| Streaming | `append_dedup` | 10 | 10 | 10 |
-| CDC | `cdc_merge` | 1320 | 230 | 15 |
-| CDF | — | — | 300 | 1 |
+| Streaming | `append_dedup` | 15 | 15 | 15 |
+| CDC | `cdc_merge` | 1360 | 240 | 15 |
+| CDF | — | — | 310 | 3 |
 
 En Batch, las 525 filas de Bronze colapsan a 500 en Silver: son las 25
 reemisiones que el generador introduce a propósito para que `full_merge` tenga
-algo que resolver. En CDC, 1320 eventos acumulados producen 230 clientes
+algo que resolver. En CDC, 1360 eventos acumulados producen 240 clientes
 vigentes.
 
 El contraste entre las tres estrategias de promoción es uno de los resultados
@@ -96,7 +96,7 @@ Del núcleo evaluable, **7 de 8**:
 
 ## Incidencias reportadas a DKOps
 
-Siete detectadas durante la implementación, **las siete corregidas**:
+Ocho detectadas durante la implementación, **las ocho corregidas**:
 
 | # | Incidencia | Corregida en |
 |---|---|---|
@@ -107,6 +107,7 @@ Siete detectadas durante la implementación, **las siete corregidas**:
 | 5 | `license = "MIT"` (PEP 639) exigía `setuptools>=77` con `build-system` en `>=68` | v0.3.2 |
 | 6 | Solo `CreateWriter` respetaba `type: EXTERNAL` y `location` del contrato | v0.3.3 |
 | 7 | `log_success` y `log_failure` no escriben nunca en la tabla de control | v0.3.4 |
+| 8 | Cada sync reescribía el log entero, así que un fallo lo dejaba a 0 bytes | v0.3.5 |
 
 La quinta es la más instructiva: se introdujo **al corregir las tres primeras**
 y solo se manifestaba en el cluster, no en un entorno de desarrollo. Ninguna
@@ -137,6 +138,24 @@ de integración que faltaba: los de mocks pasaban en verde porque
 
 Verificado en Databricks tras actualizar: `SUCCESS | rows_written=525`, con las
 duraciones ya calculables desde la propia fila.
+
+### La octava, en detalle
+
+De 13 ficheros de log, 5 quedaron a 0 bytes, con la tarea terminando en
+`SUCCESS` y su stdout mostrando cuatro escrituras correctas.
+
+Comparar las cuatro tareas de una misma ejecución aisló la variable: en tres, el
+fichero medía exactamente lo que escribió la última sincronización; en la cuarta,
+esa sincronización fue **lo último que hizo el proceso**. `dbutils.fs.put` con
+`overwrite=True` trunca el destino antes de volcar y devuelve el control antes
+de confirmar el blob, así que morir en esa ventana deja el fichero vacío.
+
+Lo grave no era la carrera, que no depende de DKOps, sino que **cada
+sincronización reescribía el fichero entero**: no se perdía el último tramo, se
+perdía el histórico completo.
+
+Corregido en v0.3.5, que escribe un objeto por tramo y no vuelve a tocarlo,
+reintenta el tramo que falla y avisa por stdout si el log queda incompleto.
 
 ## Fallos que solo aparecieron al ejecutar
 
@@ -189,13 +208,10 @@ los recursos o documentar Terraform como demostración de IaC.
 
 ## Deuda técnica
 
-- Algunos ficheros de log quedan a 0 bytes, siempre los de las primeras tareas
-  de cada job. Sospecha: el manejador de nube sincroniza cada 5 mensajes y no
-  vacía lo pendiente al terminar el proceso.
 - CDF no aparece en la tabla de control: su pipeline no construye un
   `IngestionEngine`, así que no instancia el registro de operaciones.
 - Los 5 workflows de GitHub Actions siguen siendo ficheros de 10 líneas.
-- 8 páginas de `docs/` pendientes de redactar: arquitectura (3), stack, costes,
+- 7 páginas de `docs/` pendientes de redactar: arquitectura (3), stack, costes,
   CI/CD y conclusiones.
 - Las rutas con formato `lote=...` hacen que Spark infiera una columna de
   partición no declarada en el contrato (`lote` en la Bronze de streaming).

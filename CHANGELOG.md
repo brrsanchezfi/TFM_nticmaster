@@ -218,6 +218,23 @@
   - Verificado en Databricks: `SUCCESS | rows_written=525`, con las duraciones
     ya calculables desde la fila.
   - 48 tests en verde con la nueva versión.
+- Actualización a DKOps v0.3.5:
+  - Diagnosticada y corregida una octava incidencia: de 13 ficheros de log, 5
+    quedaban a 0 bytes con la tarea terminando en `SUCCESS`. `dbutils.fs.put`
+    con `overwrite=True` trunca el destino antes de volcar y devuelve el
+    control antes de confirmar el blob; como cada sincronización reescribía el
+    fichero entero, morir en esa ventana no costaba el último tramo sino todo
+    el histórico.
+  - El diagnóstico salió de comparar las cuatro tareas de una misma ejecución:
+    en tres, el fichero medía exactamente lo que escribió la última
+    sincronización; en la cuarta, esa sincronización fue lo último que hizo el
+    proceso.
+  - v0.3.5 escribe un objeto por tramo y no vuelve a tocarlo, con un token por
+    ejecución para que dos procesos no se pisen, reintento del tramo fallido y
+    aviso por stdout si el log queda incompleto.
+  - Cambia el nombre de los ficheros a `<subproceso>.<run>.NNNN.log`; se
+    reconstruyen con `AppLogger.read_cloud_log()`. Documentado en
+    `docs/observabilidad.md`.
 - Actualización a DKOps v0.3.2:
   - Las tres incidencias reportadas durante el TFM están corregidas: el wheel
     ya declara su versión real, la promoción a Silver genera
