@@ -29,6 +29,12 @@ def compute_metricas(eventos: DataFrame) -> DataFrame:
         # En Silver la hora es texto, fiel al JSON de la API. Aquí pasa a
         # timestamp y se trunca a la hora, que es la ventana de agregación.
         .withColumn("ventana", F.date_trunc("hour", F.to_timestamp("hora")))
+        # `to_timestamp` devuelve NULL ante un formato que no reconoce, y la
+        # hora llega como texto desde la API. Sin este filtro, esas lecturas se
+        # agrupaban en una ventana nula: una fila de Gold sin hora, que ningún
+        # tablero sabe dibujar. Una observación que no se puede situar en el
+        # tiempo no tiene sitio en una tabla de métricas por ventana horaria.
+        .where(F.col("ventana").isNotNull())
         .groupBy("ciudad", "ventana")
         .agg(
             F.count("*").cast("long").alias("num_lecturas"),

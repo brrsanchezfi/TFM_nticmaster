@@ -46,6 +46,22 @@ def build_context(
     return Launcher(str(root / config_path), log_filename=proceso), root
 
 
+def nombre_tabla(contrato: TableContract, env) -> str:
+    """Identificador con el que dirigirse a la tabla en este entorno.
+
+    En Unity Catalog es ``catalogo.esquema.tabla``. En local no hay catálogo:
+    Spark rechaza los nombres de tres partes con
+    ``REQUIRES_SINGLE_PART_NAMESPACE``, y DKOps registra las tablas como
+    ``esquema.tabla`` en el catálogo de sesión.
+
+    Los writers de DKOps resuelven esto por dentro, pero este caso de uso lee
+    tablas por nombre —no solo escribe—, así que la resolución le toca a él.
+    """
+    if getattr(env, "_is_databricks", False):
+        return contrato.full_name
+    return f"{contrato.schema}.{contrato.name}"
+
+
 def contratos(root: Path, env) -> dict[str, TableContract]:
     """Carga los tres contratos de tabla del caso."""
     return {

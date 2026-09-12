@@ -1,6 +1,13 @@
 {
   "EXECUTION_ENVIRONMENT": "local",
   "SPARK_APP_NAME": "weather_events-local",
+  "SPARK_WAREHOUSE_DIR": "/tmp/weather_events/warehouse",
+
+  "DATABRICKS_TARGET": "local",
+
+  "LOG_LEVEL": "INFO",
+  "LOG_DIR": "/tmp/weather_events/logs",
+
   "environments": {
     "local": {
       "env": "local",
@@ -12,6 +19,7 @@
         "silver": "/tmp/weather_events/silver",
         "gold": "/tmp/weather_events/gold",
         "checkpoint": "/tmp/weather_events/checkpoints",
+        "schemas": "/tmp/weather_events/schemas",
         "ops": "/tmp/weather_events/ops"
       }
     }

@@ -1,4 +1,4 @@
-"""Tests de la lógica Gold del caso CDC — offline, solo Spark local."""
+"""Tests de la lógica Gold del caso CDC-offline, solo Spark local."""
 from customers.transformations.gold_metrics import compute_cartera, compute_historico
 
 COLS_SILVER = ["cliente_id", "segmento", "ciudad", "is_deleted"]
@@ -51,6 +51,42 @@ def test_el_historico_separa_dias(spark):
     historico = compute_historico(spark.createDataFrame(EVENTOS, COLS_BRONZE))
     fechas = {str(f["fecha"]) for f in historico.collect()}
     assert fechas == {"2026-08-20", "2026-08-21"}
+
+
+def test_activos_mas_bajas_siempre_suman_el_total(spark):
+    """El invariante de la cartera, con `is_deleted` a NULL de por medio.
+
+    En SQL `NOT NULL` no es `TRUE`: una fila con `is_deleted` nulo no entraba
+    ni en `activos` ni en `bajas`, pero sí en `total`, así que el cuadre se
+    rompía sin que nada fallara. Es el mismo modo de fallo que ya costó cinco
+    ejecuciones en verde con datos incorrectos.
+
+    DKOps garantiza desde la v0.3.4 que `is_deleted` nunca llegue a NULL, pero
+    la agregación no debe depender de esa garantía: si alguna vez se rompe, el
+    resultado tiene que fallar, no mentir.
+    """
+    filas = [
+        ("CLI-1", "retail", "Madrid", False),
+        ("CLI-2", "retail", "Madrid", True),
+        ("CLI-3", "retail", "Madrid", None),
+    ]
+    fila = compute_cartera(spark.createDataFrame(filas, COLS_SILVER)).collect()[0]
+
+    assert fila["activos"] + fila["bajas"] == fila["total"], (
+        f"la cartera no cuadra: {fila['activos']} + {fila['bajas']} "
+        f"!= {fila['total']}"
+    )
+    # Un cliente sin marca de baja se cuenta como vigente, que es el mismo
+    # criterio que usan los filtros del pipeline (`is_deleted IS NOT TRUE`).
+    assert fila["activos"] == 2
+    assert fila["bajas"] == 1
+
+
+def test_una_cartera_vacia_no_revienta(spark):
+    """Un caso de uso recién desplegado no tiene clientes todavía."""
+    vacio = spark.createDataFrame([], "cliente_id string, segmento string, "
+                                      "ciudad string, is_deleted boolean")
+    assert compute_cartera(vacio).count() == 0
 
 
 def test_esquemas_coinciden_con_los_contratos(spark):

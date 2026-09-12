@@ -2,7 +2,7 @@
 # Se fija un tag concreto, nunca "main", para que el proyecto sea reproducible.
 #
 # Instalación:
-#   pip install "dkops[local] @ git+https://github.com/brrsanchezfi/DKOps.git@v0.3.4"
+#   pip install "dkops[local] @ git+https://github.com/brrsanchezfi/DKOps.git@v0.3.5"
 #
 # El extra [local] añade pyspark 3.5.3 y delta-spark 3.2.0 para desarrollo y
 # tests offline. En Databricks NO se instala ese extra: pyspark lo aporta el
@@ -35,5 +35,14 @@
 #            un self-join. El `except` que envolvía la escritura pasa de
 #            `warning` a `error` con el tipo de excepción: es lo que convirtió
 #            el fallo en invisible durante 25 ejecuciones.
+#   v0.3.5 — el log en la nube se escribe por tramos. Cada sincronización crea
+#            un objeto nuevo que ya no se vuelve a tocar, en vez de reescribir
+#            el fichero entero: un fallo pierde como mucho el último tramo y no
+#            el histórico. Cada ejecución lleva su propio token, así que dos
+#            procesos con el mismo nombre de fichero no se pisan. El tramo que
+#            falla vuelve a la cola y se reintenta, y si aun así no entra, se
+#            avisa por stdout de que el log quedó incompleto.
+#            Cambia el nombre de los ficheros: `<subproceso>.<run>.NNNN.log`.
+#            Se reconstruyen con `AppLogger.read_cloud_log()`.
 
-v0.3.4
+v0.3.5

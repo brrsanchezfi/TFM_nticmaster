@@ -3,16 +3,11 @@ resources:
     retail_sales_pipeline:
       name: "[${bundle.target}] batch_retail_sales_pipeline"
 
-      # Un único job cluster compartido por las tres tareas: se levanta una vez
-      # y se apaga al terminar la última, en vez de pagar tres arranques.
       job_clusters:
         - job_cluster_key: pipeline_cluster
           new_cluster:
             spark_version: ${var.spark_version}
             node_type_id: ${var.node_type_id}
-            # Single node: el volumen de la PoC no justifica workers, y así
-            # solo se paga una VM. No se adjunta la policy "Job Compute"
-            # porque prohíbe spark.databricks.cluster.profile.
             num_workers: 0
             spark_conf:
               spark.master: "local[*]"
@@ -23,30 +18,37 @@ resources:
             # Requerido para usar Unity Catalog desde un wheel task.
             data_security_mode: SINGLE_USER
             azure_attributes:
-              # En single-node la única VM es el driver, y Azure exige que el
-              # driver sea on-demand: first_on_demand debe ser >= 1. Es decir,
-              # aquí no hay ahorro por spot. Se deja declarado para que el
-              # ahorro aplique si algún día se añaden workers.
               availability: SPOT_WITH_FALLBACK_AZURE
               first_on_demand: 1
 
       tasks:
-        - task_key: ingest_bronze
+        # ══════════════════════════════════════════════════════════════════
+        #  DIMENSIONES, los cinco catálogos del modelo
+        #
+        #  Rama propia y en paralelo con el hecho, sobre el mismo cluster.
+        #  Las cinco comparten tarea porque son catálogos diminutos: levantar
+        #  una tarea por cada uno costaría más en orquestación que en cómputo.
+        #
+        #  La tarea publica primero los catálogos en la landing simulando al
+        #  sistema maestro, y después los ingiere. En el log las dos partes van
+        #  separadas por un banner: la primera es atrezo y en un entorno real
+        #  no existiría.
+        # ══════════════════════════════════════════════════════════════════
+        - task_key: dims_ingest_bronze
           job_cluster_key: pipeline_cluster
           python_wheel_task:
             package_name: retail_sales
             entry_point: ingest_bronze
             named_parameters:
-              # El wheel vive en site-packages: la raíz del bundle (config/ y
-              # contracts/) hay que pasarla explícitamente.
               bundle-root: ${workspace.file_path}
               config: config/config.dev.json
+              dataset: dimensiones
           libraries:
             - whl: ../dist/*.whl
 
-        - task_key: promote_silver
+        - task_key: dims_promote_silver
           depends_on:
-            - task_key: ingest_bronze
+            - task_key: dims_ingest_bronze
           job_cluster_key: pipeline_cluster
           python_wheel_task:
             package_name: retail_sales
@@ -54,12 +56,54 @@ resources:
             named_parameters:
               bundle-root: ${workspace.file_path}
               config: config/config.dev.json
+              dataset: dimensiones
           libraries:
             - whl: ../dist/*.whl
 
+        # ══════════════════════════════════════════════════════════════════
+        #  HECHO, las ventas
+        #
+        #  Mismo cableado y misma estrategia (`full_merge`) que las
+        #  dimensiones: lo que cambia es la clave del merge, declarada en el
+        #  contrato. El código no distingue entre un hecho y una dimensión.
+        # ══════════════════════════════════════════════════════════════════
+        - task_key: fact_ingest_bronze
+          job_cluster_key: pipeline_cluster
+          python_wheel_task:
+            package_name: retail_sales
+            entry_point: ingest_bronze
+            named_parameters:
+              bundle-root: ${workspace.file_path}
+              config: config/config.dev.json
+              dataset: ventas
+          libraries:
+            - whl: ../dist/*.whl
+
+        - task_key: fact_promote_silver
+          depends_on:
+            - task_key: fact_ingest_bronze
+          job_cluster_key: pipeline_cluster
+          python_wheel_task:
+            package_name: retail_sales
+            entry_point: promote_silver
+            named_parameters:
+              bundle-root: ${workspace.file_path}
+              config: config/config.dev.json
+              dataset: ventas
+          libraries:
+            - whl: ../dist/*.whl
+
+        # ══════════════════════════════════════════════════════════════════
+        #  GOLD, la capa de consumo
+        #
+        #  Espera a las dos ramas: los KPIs se calculan sobre el hecho, pero
+        #  que las dimensiones estén completas es requisito para que un
+        #  tablero pueda unirlas sin encontrarse claves sin resolver.
+        # ══════════════════════════════════════════════════════════════════
         - task_key: build_gold
           depends_on:
-            - task_key: promote_silver
+            - task_key: fact_promote_silver
+            - task_key: dims_promote_silver
           job_cluster_key: pipeline_cluster
           python_wheel_task:
             package_name: retail_sales

@@ -39,7 +39,12 @@ def compute_kpis(ventas: DataFrame) -> DataFrame:
             F.count("*").alias("num_ventas"),
             F.sum("cantidad").cast("long").alias("unidades"),
             F.round(F.sum("importe"), 2).alias("importe_total"),
-            F.round(F.avg("importe"), 2).alias("ticket_medio"),
+            # El ticket medio se deriva de las otras dos cifras publicadas, no
+            # de `avg`. `avg` ignora los importes nulos y `count(*)` no, así
+            # que una venta sin importe dejaba un ticket medio que no cuadraba
+            # con importe_total entre num_ventas: quien consultara la tabla y
+            # dividiera obtendría otro número, sin que nada hubiera fallado.
+            F.round(F.sum("importe") / F.count("*"), 2).alias("ticket_medio"),
         )
         .withColumn("_generated_at", F.current_timestamp())
     )

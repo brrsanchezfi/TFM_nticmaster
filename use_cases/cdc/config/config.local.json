@@ -1,6 +1,13 @@
 {
   "EXECUTION_ENVIRONMENT": "local",
   "SPARK_APP_NAME": "customers-local",
+  "SPARK_WAREHOUSE_DIR": "/tmp/customers/warehouse",
+
+  "DATABRICKS_TARGET": "local",
+
+  "LOG_LEVEL": "INFO",
+  "LOG_DIR": "/tmp/customers/logs",
+
   "environments": {
     "local": {
       "env": "local",
@@ -12,6 +19,7 @@
         "silver": "/tmp/customers/silver",
         "gold": "/tmp/customers/gold",
         "checkpoint": "/tmp/customers/checkpoints",
+        "schemas": "/tmp/customers/schemas",
         "ops": "/tmp/customers/ops"
       }
     }

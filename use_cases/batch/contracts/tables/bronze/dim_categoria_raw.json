@@ -1,0 +1,54 @@
+{
+  "catalog": "{catalog.bronze}",
+  "schema": "batch",
+  "name": "dim_categoria_raw",
+  "type": "EXTERNAL",
+  "format": "DELTA",
+  "location": "{path.bronze}/batch/dim_categoria_raw",
+  "comment": "Categorías de producto tal como llegan de la landing, sin depurar.",
+  "partitions": [
+    "_ingested_date"
+  ],
+  "columns": [
+    {
+      "name": "categoria_id",
+      "type": "STRING",
+      "nullable": false,
+      "comment": "Identificador de la categoría. Clave del merge."
+    },
+    {
+      "name": "categoria",
+      "type": "STRING",
+      "comment": "Nombre de la categoría tal como aparece en las ventas."
+    },
+    {
+      "name": "familia",
+      "type": "STRING",
+      "comment": "Agrupación comercial de nivel superior."
+    },
+    {
+      "name": "iva",
+      "type": "DOUBLE",
+      "comment": "Tipo de IVA aplicable en porcentaje. Libros y alimentación llevan tipo reducido."
+    },
+    {
+      "name": "_ingested_at",
+      "type": "TIMESTAMP",
+      "comment": "Momento de la ingesta en Bronze."
+    },
+    {
+      "name": "_ingested_date",
+      "type": "DATE",
+      "comment": "Día de la ingesta. Clave de la sobrescritura por partición."
+    },
+    {
+      "name": "_source_file",
+      "type": "STRING",
+      "comment": "Fichero de la landing del que procede la fila."
+    }
+  ],
+  "properties": {
+    "delta.autoOptimize.optimizeWrite": "true",
+    "proyecto": "TFM-NTIC-Master"
+  }
+}

@@ -30,7 +30,7 @@ borrarlas es idéntico venga el evento de Change Tracking, de Debezium, de un
 log de Kafka o de un fichero. La pieza que cambiaría es el productor —unas
 decenas de líneas—, no el pipeline.
 
-El módulo de Terraform para Azure SQL está escrito y validado en `infra/`, listo
+El origen real habría sido un Azure SQL con Change Tracking, listo
 para activarse con `enable_cdc_sql = true` en cuanto alguien registre el
 provider.
 

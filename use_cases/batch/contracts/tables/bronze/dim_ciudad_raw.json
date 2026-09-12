@@ -1,0 +1,59 @@
+{
+  "catalog": "{catalog.bronze}",
+  "schema": "batch",
+  "name": "dim_ciudad_raw",
+  "type": "EXTERNAL",
+  "format": "DELTA",
+  "location": "{path.bronze}/batch/dim_ciudad_raw",
+  "comment": "Geografía tal como llega de la landing, sin depurar.",
+  "partitions": [
+    "_ingested_date"
+  ],
+  "columns": [
+    {
+      "name": "ciudad_id",
+      "type": "STRING",
+      "nullable": false,
+      "comment": "Identificador de la ciudad. Clave del merge."
+    },
+    {
+      "name": "ciudad",
+      "type": "STRING",
+      "comment": "Nombre de la ciudad tal como aparece en las ventas."
+    },
+    {
+      "name": "region",
+      "type": "STRING",
+      "comment": "Comunidad autónoma o departamento."
+    },
+    {
+      "name": "pais",
+      "type": "STRING",
+      "comment": "País al que pertenece la ciudad."
+    },
+    {
+      "name": "habitantes",
+      "type": "INTEGER",
+      "comment": "Población aproximada, para normalizar métricas por habitante."
+    },
+    {
+      "name": "_ingested_at",
+      "type": "TIMESTAMP",
+      "comment": "Momento de la ingesta en Bronze."
+    },
+    {
+      "name": "_ingested_date",
+      "type": "DATE",
+      "comment": "Día de la ingesta. Clave de la sobrescritura por partición."
+    },
+    {
+      "name": "_source_file",
+      "type": "STRING",
+      "comment": "Fichero de la landing del que procede la fila."
+    }
+  ],
+  "properties": {
+    "delta.autoOptimize.optimizeWrite": "true",
+    "proyecto": "TFM-NTIC-Master"
+  }
+}

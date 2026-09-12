@@ -55,3 +55,36 @@ def test_esquema_coincide_con_el_contrato_gold(spark):
         "viento_max", "_generated_at",
     }
     assert set(compute_metricas(_eventos(spark)).columns) == esperadas
+
+
+def test_min_y_max_encierran_a_la_media(spark):
+    """El invariante de cualquier agregación de temperaturas."""
+    for fila in compute_metricas(_eventos(spark)).collect():
+        assert fila["temperatura_min"] <= fila["temperatura_media"] <= fila["temperatura_max"], (
+            f"{fila['ciudad']} {fila['ventana']}: "
+            f"{fila['temperatura_min']} / {fila['temperatura_media']} / "
+            f"{fila['temperatura_max']}"
+        )
+
+
+def test_una_hora_ilegible_no_crea_una_ventana_nula(spark):
+    """La hora llega como texto desde la API: puede venir mal.
+
+    `to_timestamp` devuelve NULL ante un formato que no reconoce, y esa
+    lectura acabaría agrupada en una ventana nula —una fila de Gold sin hora,
+    que ningún tablero sabría dibujar— en lugar de descartarse o fallar.
+    """
+    filas = FILAS + [("Madrid", "no-es-una-fecha", 30.0, 60, 5.0)]
+    metricas = compute_metricas(spark.createDataFrame(filas, COLUMNAS))
+
+    assert metricas.filter("ventana IS NULL").count() == 0, (
+        "una lectura con hora ilegible no debe producir una ventana nula"
+    )
+
+
+def test_un_dataset_vacio_no_revienta(spark):
+    """Una ronda del poller sin observaciones nuevas es un caso normal."""
+    vacio = spark.createDataFrame(
+        [], "ciudad string, hora string, temperatura double, "
+            "humedad int, viento double")
+    assert compute_metricas(vacio).count() == 0

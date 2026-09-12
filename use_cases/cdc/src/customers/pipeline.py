@@ -16,11 +16,10 @@ from DKOps.ingestion.engine import IngestionEngine
 from DKOps.ingestion.ops import IngestionOpsLogger
 from DKOps.launcher import Launcher
 
+#Configuraciones de Ambiente
 DEFAULT_CONFIG = "config/config.dev.json"
 
-# Fallbacks solo para ejecución local: en Databricks /tmp vive en el driver y
-# desaparece al apagarse el job cluster, así que el estado de Auto Loader y el
-# log de operaciones se perderían entre ejecuciones.
+#Solo para ejecuciones locales
 OPS_PATH_FALLBACK = "/tmp/customers/ops"
 SCHEMAS_PATH_FALLBACK = "/tmp/customers/schemas"
 
@@ -52,11 +51,10 @@ def build_engine(
     bundle_root: str | None = None,
     proceso: str | None = None,
 ) -> tuple[Launcher, IngestionEngine]:
-    """Devuelve el Launcher (dueño de la SparkSession) y el engine ya cableado.
-
+    """Devuelve el Launcher (dueño de la SparkSession) y el engine ya cableado*(DKOps)
     ``proceso`` da nombre al fichero de log. Con LOG_DIR apuntando a la carpeta
     del caso de uso, cada subproceso escribe su propia traza y se puede seguir
-    una tarea concreta sin bucear en el log de todo el pipeline.
+    una tarea concreta sin navegar en el log de todo el pipeline.
     """
     root = resolve_bundle_root(bundle_root)
     launcher = Launcher(str(root / config_path), log_filename=proceso)
@@ -103,7 +101,11 @@ def build_engine(
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    """Argumentos comunes a todos los entrypoints del bundle."""
+    """Argumentos comunes a todos los entrypoints del bundle.
+
+    Permite agregar argumentos a los archivos .py que funcionan como entryPoints
+    
+    """
     p = argparse.ArgumentParser()
     p.add_argument("--bundle-root", default=None,
                    help="Raíz del bundle desplegado (workspace.file_path).")

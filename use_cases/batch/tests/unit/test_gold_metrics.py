@@ -43,6 +43,48 @@ def test_incluye_marca_de_generacion(spark):
     assert kpis.filter("_generated_at IS NULL").count() == 0
 
 
+def test_ticket_medio_cuadra_con_importe_y_ventas(spark):
+    """El invariante del KPI: el ticket medio es el importe entre las ventas.
+
+    No es redundante con el test anterior: aquel comprueba un grupo concreto
+    con números a mano, este comprueba la relación en todos los grupos.
+    """
+    for fila in compute_kpis(_ventas(spark)).collect():
+        esperado = round(fila["importe_total"] / fila["num_ventas"], 2)
+        assert fila["ticket_medio"] == esperado, (
+            f"grupo {fila['categoria']}/{fila['canal']}: ticket_medio="
+            f"{fila['ticket_medio']} pero importe/ventas={esperado}"
+        )
+
+
+def test_una_venta_sin_importe_no_descuadra_el_ticket_medio(spark):
+    """Un importe nulo no puede romper la coherencia entre los KPIs.
+
+    `avg` ignora los nulos y `count(*)` no, así que una venta sin importe deja
+    un ticket medio que no se corresponde con el importe total dividido entre
+    el número de ventas. El agregado sigue calculándose y nadie se entera.
+    """
+    filas = [
+        ("v1", "2026-01-10", "Hogar", "online", 2, 20.0),
+        ("v2", "2026-01-10", "Hogar", "online", 3, 40.0),
+        ("v3", "2026-01-10", "Hogar", "online", 1, None),
+    ]
+    fila = compute_kpis(spark.createDataFrame(filas, COLUMNAS)).collect()[0]
+
+    assert fila["ticket_medio"] == round(fila["importe_total"] / fila["num_ventas"], 2), (
+        f"ticket_medio={fila['ticket_medio']} no cuadra con "
+        f"{fila['importe_total']}/{fila['num_ventas']}"
+    )
+
+
+def test_un_dataset_vacio_no_revienta(spark):
+    """Una ejecución sobre una landing sin ventas nuevas es un caso normal."""
+    vacio = spark.createDataFrame(
+        [], "venta_id string, fecha string, categoria string, "
+            "canal string, cantidad int, importe double")
+    assert compute_kpis(vacio).count() == 0
+
+
 def test_esquema_coincide_con_el_contrato_gold(spark):
     """El DataFrame debe traer exactamente las columnas que declara el contrato."""
     esperadas = {

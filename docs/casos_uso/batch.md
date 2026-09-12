@@ -4,7 +4,7 @@
 
 Batch es el caso piloto del TFM. No se eligió por ser el más interesante —no
 lo es— sino por ser el más simple: recorre la cadena completa
-Terraform → Unity Catalog → DKOps → Asset Bundle con la mínima complejidad
+Unity Catalog → ingesta por contrato → Asset Bundle con la mínima complejidad
 posible. Si algo del diseño está mal, aquí se ve antes y más barato que en
 streaming o CDC.
 

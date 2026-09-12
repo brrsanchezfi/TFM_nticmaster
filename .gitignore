@@ -236,3 +236,11 @@ terraform.rc
 
 # Configuración local de Claude Code (permisos por máquina)
 .claude/settings.local.json
+
+# Warehouse local que crean los tests de integración con Spark.
+spark-warehouse/
+
+# Terraform: se retiró del alcance del trabajo.
+.terraform/
+*.tfstate
+*.tfstate.*

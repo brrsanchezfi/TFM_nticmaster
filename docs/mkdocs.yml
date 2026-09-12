@@ -13,9 +13,10 @@ nav:
       - CDF: casos_uso/cdf.md
   - Stack (incl. DKOps): stack.md
   - Observabilidad: observabilidad.md
+  - Ejecución local: ejecucion-local.md
   - Infraestructura: infraestructura.md
   - Costes: costes.md
-  - CI/CD: ci-cd.md
+  - Despliegue: despliegue.md
   - Conclusiones: conclusiones.md
 theme:
   name: material

@@ -17,6 +17,8 @@ from DKOps.table_governance import TableWriter, load_contract
 from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql import functions as F
 
+
+# Contratos de DKOps para las tablas de Gold
 CONTRATO_ACTIVOS = "contracts/tables/gold/clientes_activos.json"
 CONTRATO_HISTORICO = "contracts/tables/gold/historico_cambios.json"
 
@@ -27,12 +29,18 @@ def compute_cartera(clientes: DataFrame) -> DataFrame:
     Poder contar las bajas es precisamente lo que aporta el soft-delete: con un
     borrado físico esas filas no existirían y la columna sería siempre cero.
     """
+    # `is_deleted` nulo se trata como cliente vigente, igual que en los filtros
+    # del pipeline (`is_deleted IS NOT TRUE`). Sin este coalesce, en SQL
+    # `NOT NULL` no es `TRUE` y una fila nula se caía de ambos contadores pero
+    # seguía contando en el total: la cartera no cuadraba y nada fallaba.
+    baja = F.coalesce(F.col("is_deleted"), F.lit(False))
+
     return (
         clientes
         .groupBy("segmento", "ciudad")
         .agg(
-            F.sum(F.when(~F.col("is_deleted"), 1).otherwise(0)).cast("long").alias("activos"),
-            F.sum(F.when(F.col("is_deleted"), 1).otherwise(0)).cast("long").alias("bajas"),
+            F.sum(F.when(~baja, 1).otherwise(0)).cast("long").alias("activos"),
+            F.sum(F.when(baja, 1).otherwise(0)).cast("long").alias("bajas"),
             F.count("*").cast("long").alias("total"),
         )
         .withColumn("_generated_at", F.current_timestamp())

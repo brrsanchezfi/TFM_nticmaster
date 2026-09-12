@@ -1,0 +1,71 @@
+{
+  "catalog": "{catalog.silver}",
+  "schema": "batch",
+  "name": "dim_cliente",
+  "type": "EXTERNAL",
+  "format": "DELTA",
+  "location": "{path.silver}/batch/dim_cliente",
+  "comment": "Clientes con su ciudad y segmento, consolidados por cliente_id. La recarga completa pierde el histórico de cambios de atributo: un cliente que cambia de ciudad deja de poder analizarse con la que tenía cuando compró. Es el candidato natural a SCD Tipo 2.",
+  "columns": [
+    {
+      "name": "cliente_id",
+      "type": "STRING",
+      "nullable": false,
+      "comment": "Identificador del cliente. Clave del merge."
+    },
+    {
+      "name": "nombre",
+      "type": "STRING",
+      "comment": "Nombre y apellido del cliente."
+    },
+    {
+      "name": "ciudad_id",
+      "type": "STRING",
+      "comment": "Referencia a dim_ciudad."
+    },
+    {
+      "name": "ciudad",
+      "type": "STRING",
+      "comment": "Nombre de la ciudad, desnormalizado para poder consultar la dimensión sin unir."
+    },
+    {
+      "name": "segmento",
+      "type": "STRING",
+      "comment": "Segmento comercial: retail o premium."
+    },
+    {
+      "name": "fecha_alta",
+      "type": "STRING",
+      "comment": "Fecha de alta del cliente en ISO-8601."
+    },
+    {
+      "name": "_ingested_at",
+      "type": "TIMESTAMP",
+      "comment": "Momento de la ingesta en Bronze."
+    },
+    {
+      "name": "_ingested_date",
+      "type": "DATE",
+      "comment": "Día de la ingesta. Clave de la sobrescritura por partición."
+    },
+    {
+      "name": "_source_file",
+      "type": "STRING",
+      "comment": "Fichero de la landing del que procede la fila."
+    },
+    {
+      "name": "_silver_created_at",
+      "type": "TIMESTAMP",
+      "comment": "Primera vez que la fila llegó a Silver. Insert-only: el MERGE la inserta pero no la sobrescribe, así que sigue significando 'primera escritura'."
+    },
+    {
+      "name": "_silver_modified_at",
+      "type": "TIMESTAMP",
+      "comment": "Última recarga que tocó la fila. Como el catálogo es fijo, en la práctica marca la última ejecución del pipeline."
+    }
+  ],
+  "properties": {
+    "delta.autoOptimize.optimizeWrite": "true",
+    "proyecto": "TFM-NTIC-Master"
+  }
+}

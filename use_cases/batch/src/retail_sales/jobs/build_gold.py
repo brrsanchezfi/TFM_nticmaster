@@ -7,6 +7,12 @@ from retail_sales.pipeline import build_engine, parse_args, resolve_bundle_root
 from retail_sales.transformations import gold_metrics
 
 
+"""
+
+Logicas de negocio estan separadas en modulos, 
+las logicas de negocio permaneces aisladas hasta la llamada de ejecucion    
+"""
+
 def main() -> None:
     args = parse_args()
     launcher, _ = build_engine(args.config, args.bundle_root, proceso="build_gold")
