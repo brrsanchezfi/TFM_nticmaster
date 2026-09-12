@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from DKOps.table_governance import TableWriter
 from orders.generators.generate_orders import generar_lote_cambios, generar_pedidos
-from orders.pipeline import build_context, contratos, parse_args
+from orders.pipeline import build_context, contratos, nombre_tabla, parse_args
 from pyspark.sql import functions as F
 
 PEDIDOS_INICIALES = 300
@@ -45,7 +45,7 @@ def main() -> None:
     cts = contratos(root, launcher.env)
 
     origen = cts["origen"]
-    tabla = origen.full_name
+    tabla = nombre_tabla(origen, launcher.env)
     writer = TableWriter(origen)
 
     def con_timestamp(filas: list[dict]):

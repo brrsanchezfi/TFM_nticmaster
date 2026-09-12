@@ -4,7 +4,7 @@ Dos mecanismos distintos, con propósitos que conviene no mezclar: uno para
 depurar cuando algo falla, otro para responder preguntas sobre cómo va la
 plataforma.
 
-## Registro de ejecuciones — la tabla de control
+## Registro de ejecuciones: la tabla de control
 
 `IngestionOpsLogger` de DKOps escribe una **tabla Delta** con una fila por
 evento del ciclo de vida de cada ingesta:
@@ -61,7 +61,7 @@ WHERE status = 'FAILED'
 ORDER BY started_at DESC;
 ```
 
-## Log de aplicación — la traza de texto
+## Log de aplicación: la traza de texto
 
 `AppLogger` escribe la traza de ejecución en fichero, con rotación a 10 MB y
 retención de 7 días. Se configura con `LOG_DIR` en el `config.json` de cada
@@ -70,10 +70,10 @@ caso, segmentado por caso de uso, y el nombre del fichero lo da el subproceso:
     LOG_DIR = abfss://landing@lakehousedkops.dfs.core.windows.net/tfm/_logs/<caso>
 
     tfm/_logs/
-    ├── batch/      ingest_bronze, promote_silver, build_gold
-    ├── streaming/  poll_api, ingest_bronze, promote_silver, build_gold
-    ├── cdc/        simulate_source, ingest_bronze, promote_silver, build_gold
-    └── cdf/        simulate_changes, propagate_cdf
+    |-- batch/      ingest_bronze, promote_silver, build_gold
+    |-- streaming/  poll_api, ingest_bronze, promote_silver, build_gold
+    |-- cdc/        simulate_source, ingest_bronze, promote_silver, build_gold
+    |-- cdf/        simulate_changes, propagate_cdf
 
 Así se puede seguir una tarea concreta sin bucear en la traza de todo el
 pipeline.
@@ -104,7 +104,7 @@ Los volúmenes exponen el almacenamiento por FUSE, donde **no se admite añadir 
 un fichero que ya existe**: crear y sobrescribir sí, escritura posicional no.
 `AppLogger` abre el log en modo append con rotación, de modo que la primera
 ejecución creaba el fichero sin problema y **la segunda se quedaba bloqueada
-indefinidamente**, sin error ni traza — el proceso moría en el minuto de
+indefinidamente**, sin error ni traza, el proceso moría en el minuto de
 espera del job.
 
 El síntoma era desconcertante: el log de la tarea tenía siete líneas y se
@@ -116,7 +116,7 @@ distinto para URIs de nube, así que basta con declarar `LOG_DIR` como
 que fallaba antes.
 
 Los volúmenes siguen siendo la herramienta correcta para **subir y leer**
-ficheros —la landing zone de batch y CDC—, pero no para ficheros que un
+ficheros (la landing zone de batch y CDC), pero no para ficheros que un
 proceso reabre y amplía.
 
 ## Por qué el tablero se construye sobre la tabla y no sobre el texto
@@ -168,7 +168,7 @@ con el contenido creciendo:
 Wrote 693 bytes.
 Wrote 1387 bytes.
 Wrote 2216 bytes.
-Wrote 2965 bytes.     ← última línea del proceso
+Wrote 2965 bytes.     <- última línea del proceso
 ```
 
 El diagnóstico salió de comparar las cuatro tareas de una misma ejecución:
@@ -190,7 +190,7 @@ ventana, el fichero queda vacío. Y como **cada sincronización reescribía el
 fichero entero**, no se perdía el último tramo: se perdía todo.
 
 Ese es el fallo de diseño, y es el que corrige v0.3.5 escribiendo por tramos.
-La carrera sigue existiendo —no depende de DKOps—, pero ahora cuesta un tramo
+La carrera sigue existiendo (no depende de DKOps), pero ahora cuesta un tramo
 en vez del histórico completo.
 
 Es la tercera vez en el proyecto que un fallo del subsistema de observabilidad
@@ -202,6 +202,6 @@ constancia era el que peor informaba de sus propios fallos**.
 ### CDF no se registra
 
 El caso **CDF no aparece** en la tabla de control. Su pipeline no construye un
-`IngestionEngine` —lee un Change Data Feed en lugar de ingerir desde una
-landing zone—, así que no instancia el registro de operaciones. Instrumentarlo
+`IngestionEngine`, lee un Change Data Feed en lugar de ingerir desde una
+landing zone, así que no instancia el registro de operaciones. Instrumentarlo
 exigiría añadir las llamadas a mano en sus entrypoints.

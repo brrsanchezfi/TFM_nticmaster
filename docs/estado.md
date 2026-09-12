@@ -6,24 +6,25 @@
 
 | Fase | Contenido | Estado |
 |---|---|---|
-| 0 | Diseño | ✅ |
-| 1 | Scaffolding del repositorio | ✅ |
-| 2 | Terraform (Unity Catalog) | ✅ escrito y validado, **no aplicado** |
-| 3 | Catálogos y schemas en el workspace | ✅ desplegado por API |
-| 4 | DKOps como dependencia + 4 bundles | ✅ |
-| 5 | Caso de uso **Batch** | ✅ ejecutado end-to-end |
-| 6 | Caso de uso **CDF** | ✅ ejecutado end-to-end |
-| 7 | Caso de uso **CDC** | ✅ ejecutado end-to-end |
-| 8 | Caso de uso **Streaming** | ✅ ejecutado end-to-end |
-| 8b | Tablas externas y observabilidad centralizada | 🔶 en revisión (PR abierto) |
-| 9 | CI/CD (GitHub Actions) | ⬜ workflows vacíos |
-| 10 | Documentación final | 🔶 8 de 15 páginas |
-| 11 | Revisión y defensa | ⬜ |
+| 0 | Diseño | Hecho |
+| 1 | Scaffolding del repositorio | Hecho |
+| 2 | Catálogos y schemas en el workspace | Hecho, desplegado por API |
+| 3 | Dependencia de ingesta y los 4 bundles | Hecho |
+| 4 | Caso de uso Batch | Hecho, ejecutado end-to-end |
+| 5 | Caso de uso CDF | Hecho, ejecutado end-to-end |
+| 6 | Caso de uso CDC | Hecho, ejecutado end-to-end |
+| 7 | Caso de uso Streaming | Hecho, ejecutado end-to-end |
+| 8 | Tablas externas y observabilidad centralizada | Hecho |
+| 9 | Ejecución y pruebas en local | Hecho |
+| 10 | Modelo dimensional en Batch | Hecho |
+| 11 | Despliegue con Asset Bundles | En curso, manual |
+| 12 | Documentación final | En curso |
+| 13 | Revisión y defensa | Pendiente |
 
 ## Lo que funciona hoy
 
 **Los cuatro casos de uso** están desplegados y ejecutados en Databricks, cada
-uno con su dashboard de consumo: 4 jobs, 4 dashboards y 13 tablas repartidas en
+uno con su dashboard de consumo: 4 jobs, 4 dashboards y 18 tablas repartidas en
 los tres catálogos.
 
 | Caso | Estrategia | Bronze | Silver | Gold |
@@ -31,7 +32,7 @@ los tres catálogos.
 | Batch | `full_merge` | 525 | 500 | 249 |
 | Streaming | `append_dedup` | 15 | 15 | 15 |
 | CDC | `cdc_merge` | 1360 | 240 | 15 |
-| CDF | — | — | 310 | 3 |
+| CDF | (ninguna) | (sin Bronze) | 310 | 3 |
 
 En Batch, las 525 filas de Bronze colapsan a 500 en Silver: son las 25
 reemisiones que el generador introduce a propósito para que `full_merge` tenga
@@ -44,26 +45,26 @@ JSON**, y el código de los cuatro casos es el mismo.
 
 ### Gobierno de las tablas
 
-Las **13 de 13** tablas son `EXTERNAL` y su ubicación reproduce su nombre
+Las **18 de 18** tablas son `EXTERNAL` y su ubicación reproduce su nombre
 lógico:
 
     abfss://<capa>@lakehousedkops.dfs.core.windows.net/<catálogo>/<esquema>/<tabla>
 
 Antes quedaban gestionadas bajo `__unitystorage/catalogs/<uuid>/`, ilegible y
-sin relación con el nombre de la tabla. Las 13 llevan comentario de tabla, y de
-las 118 columnas solo 5 quedan sin documentar: todas autogeneradas
-(`_rescued_data`, `lote`).
+sin relación con el nombre de la tabla. Las 18 llevan comentario de tabla. Las
+únicas columnas sin documentar son `_rescued_data`, que la genera Spark al leer
+JSON y no está en ningún contrato, y `_silver_created_at`, que es la novena
+incidencia abierta.
 
 ### Observabilidad
 
 Dos mecanismos, descritos en [observabilidad.md](observabilidad.md): una tabla
-Delta de control común a los cuatro casos —la columna `pipeline` los distingue—
+Delta de control común a los cuatro casos (la columna `pipeline` los distingue)
 y un log de texto por caso de uso y subproceso en
-`abfss://…/tfm/_logs/<caso>/<subproceso>.log`.
+`abfss://.../tfm/_logs/<caso>/<subproceso>.log`.
 
-Los cuatro casos están desplegados con v0.3.4 y ejecutados. La tabla de control
-registra ya aperturas y cierres de los tres pipelines que construyen un
-`IngestionEngine`:
+Los cuatro casos están desplegados con v0.3.5. La tabla de control registra
+aperturas y cierres de los tres pipelines que construyen un `IngestionEngine`:
 
 | Pipeline | STARTED | SUCCESS |
 |---|---|---|
@@ -74,29 +75,26 @@ registra ya aperturas y cierres de los tres pipelines que construyen un
 El desequilibrio entre columnas es histórico: las filas anteriores a v0.3.4
 quedaron sin su cierre y no se han borrado, porque documentan el fallo.
 
-Los cuatro directorios de logs existen y están segmentados por subproceso.
-**Varios ficheros quedan a 0 bytes**, siempre los de las primeras tareas de cada
-job: en `batch` el `ingest_bronze.log` estuvo a 0 tras una ejecución y se llenó
-en la siguiente, lo que apunta a que el manejador de nube —que sincroniza con
-`dbutils.fs.put` cada 5 mensajes— pierde lo pendiente al terminar el proceso.
-Pendiente de confirmar.
+Los logs se escriben por tramos desde v0.3.5, con un token por ejecución. Antes
+se reescribía el fichero entero en cada sincronización y un fallo puntual se
+llevaba el histórico: es la octava incidencia, detallada más abajo.
 
 ## Criterios de éxito
 
 Del núcleo evaluable, **7 de 8**:
 
-- [x] Cada caso ejecuta su pipeline completo sin intervención manual
-- [x] Los 4 Asset Bundles se validan y despliegan de forma independiente
-- [x] CDC captura y procesa INSERT/UPDATE/DELETE
-- [x] Streaming ingiere desde una API pública
-- [x] CDF demuestra procesamiento incremental
-- [x] Unity Catalog organiza catálogos, schemas y tablas por capa y caso
-- [ ] Documentación completa y navegable sin leer código
-- [x] Diagramas versionados en Mermaid
+- Cumplido: Cada caso ejecuta su pipeline completo sin intervención manual
+- Cumplido: Los 4 Asset Bundles se validan y despliegan de forma independiente
+- Cumplido: CDC captura y procesa INSERT/UPDATE/DELETE
+- Cumplido: Streaming ingiere desde una API pública
+- Cumplido: CDF demuestra procesamiento incremental
+- Cumplido: Unity Catalog organiza catálogos, schemas y tablas por capa y caso
+- Pendiente: Documentación completa y navegable sin leer código
+- Cumplido: Diagramas versionados en Mermaid
 
 ## Incidencias reportadas a DKOps
 
-Ocho detectadas durante la implementación, **las ocho corregidas**:
+Nueve detectadas durante la implementación, **ocho corregidas**:
 
 | # | Incidencia | Corregida en |
 |---|---|---|
@@ -108,6 +106,7 @@ Ocho detectadas durante la implementación, **las ocho corregidas**:
 | 6 | Solo `CreateWriter` respetaba `type: EXTERNAL` y `location` del contrato | v0.3.3 |
 | 7 | `log_success` y `log_failure` no escriben nunca en la tabla de control | v0.3.4 |
 | 8 | Cada sync reescribía el log entero, así que un fallo lo dejaba a 0 bytes | v0.3.5 |
+| 9 | `_silver_created_at` no recibe el comentario del contrato | pendiente |
 
 La quinta es la más instructiva: se introdujo **al corregir las tres primeras**
 y solo se manifestaba en el cluster, no en un entorno de desarrollo. Ninguna
@@ -120,7 +119,7 @@ Durante 25 ejecuciones la tabla de control solo acumuló filas `STARTED`, con
 
 La causa estaba en `ops_logger.py`. El esquema declaraba `started_at` como
 `nullable=False`, pero `log_success` y `log_failure` construyen su fila sin ese
-campo —un cierre no reabre el inicio—, de modo que `createDataFrame` abortaba
+campo (un cierre no reabre el inicio), de modo que `createDataFrame` abortaba
 con `[CANNOT_BE_NONE]`. El error lo capturaba un `except` que solo emitía un
 *warning*, así que **el fallo era silencioso**: la ingesta terminaba en verde y
 nadie se enteraba de que el cierre no se había registrado.
@@ -131,7 +130,7 @@ cosa del entorno.
 
 Corregido en v0.3.4, que adopta las tres correcciones propuestas: `started_at`
 pasa a nullable, el logger lo recuerda por `run_id` y lo repite en el cierre
-—de modo que la duración sale de una resta y no de un self-join— y el `except`
+(de modo que la duración sale de una resta y no de un self-join) y el `except`
 sube de `warning` a `error` con el tipo de excepción. Se añadió además el test
 de integración que faltaba: los de mocks pasaban en verde porque
 `createDataFrame` sobre un `MagicMock` nunca falla.
@@ -163,7 +162,7 @@ Merecen su sitio en la memoria, porque ninguno lo habrían detectado los tests:
 
 - **`EXECUTION_ENVIRONMENT` debe ser `local`** dentro de un job cluster, y el
   entorno se resuelve por `workspace_id`, no por nombre.
-- **`first_on_demand` debe ser ≥ 1**: en single-node la única VM es el driver
+- **`first_on_demand` debe ser >= 1**: en single-node la única VM es el driver
   y Azure exige que sea on-demand. No hay ahorro por spot.
 - **`checkpoint` y `schemas` de Auto Loader no pueden vivir en `/tmp`**: con
   clusters efímeros se pierden y cada ejecución reingiere la landing entera.
@@ -195,22 +194,19 @@ De ahí el orden obligatorio para reconstruir el entorno, en
 **`Microsoft.Sql` sin registrar.** Registrar un resource provider es una
 operación de suscripción y la cuenta es Contributor solo del Resource Group.
 El caso CDC se resolvió con un origen simulado que emite el mismo contrato de
-datos —una fila por evento con `op_type` y `op_ts`—, de modo que el pipeline es
-idéntico al que procesaría Change Tracking. El módulo Terraform del Azure SQL
-está escrito y validado, listo para `enable_cdc_sql = true`.
+datos (una fila por evento con `op_type` y `op_ts`), de modo que el pipeline es
+idéntico al que procesaría Change Tracking.
 
-**Sin App Registrations en Entra ID.** Afecta al CI/CD con OIDC. Rodeo
-previsto: usar un service principal de Databricks.
-
-**State de Terraform vacío.** Los catálogos se crearon por API, así que un
-`terraform apply` fallaría con "already exists". Queda decidir entre importar
-los recursos o documentar Terraform como demostración de IaC.
+**Sin App Registrations en Entra ID.** Impide automatizar el despliegue con
+una identidad propia. El despliegue se hace con la sesión del usuario.
 
 ## Deuda técnica
 
 - CDF no aparece en la tabla de control: su pipeline no construye un
   `IngestionEngine`, así que no instancia el registro de operaciones.
-- Los 5 workflows de GitHub Actions siguen siendo ficheros de 10 líneas.
+- El despliegue se hace a mano con `databricks bundle deploy`. Automatizarlo
+  requeriría un service principal, y no hay permisos para crear App
+  Registrations en Entra ID.
 - 7 páginas de `docs/` pendientes de redactar: arquitectura (3), stack, costes,
   CI/CD y conclusiones.
 - Las rutas con formato `lote=...` hacen que Spark infiera una columna de

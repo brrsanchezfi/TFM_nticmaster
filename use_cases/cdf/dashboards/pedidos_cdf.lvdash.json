@@ -27,26 +27,34 @@
   ],
   "pages": [
     {
-      "name": "principal",
-      "displayName": "Pedidos (CDF)",
+      "name": "pedidos",
+      "displayName": "Pedidos y propagacion",
       "layout": [
         {
           "widget": {
-            "name": "titulo",
-            "textbox_spec": "# Pedidos — caso de uso CDF\nEl agregado de `gold_tfm.cdf.pedidos_agregado` **no se reconstruye entero**: cada ejecución lee el Change Data Feed desde la última versión procesada y recalcula solo los estados afectados."
+            "name": "cabecera",
+            "textbox_spec": "# Pedidos y propagacion incremental\n\n**Caso de uso 4: Change Data Feed dentro del lago**\n\nEl unico caso cuyo origen ya esta en el lakehouse. El job lee que versiones nuevas tiene la tabla de pedidos, deduce que estados quedaron desactualizados y recalcula solo esos.\n\nEl puntero de versiones debe avanzar sin saltos ni solapamientos."
           },
-          "position": { "x": 0, "y": 0, "width": 6, "height": 2 }
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 3
+          }
         },
         {
           "widget": {
-            "name": "version_procesada",
+            "name": "kpi_pedidos",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "control",
+                  "datasetName": "agregado",
                   "fields": [
-                    { "name": "max(ultima_version)", "expression": "MAX(`ultima_version`)" }
+                    {
+                      "name": "pedidos",
+                      "expression": "SUM(`num_pedidos`)"
+                    }
                   ],
                   "disaggregated": false
                 }
@@ -57,24 +65,44 @@
               "widgetType": "counter",
               "encodings": {
                 "value": {
-                  "fieldName": "max(ultima_version)",
-                  "displayName": "Versión Delta procesada"
+                  "fieldName": "pedidos",
+                  "displayName": "Pedidos",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    }
+                  }
                 }
+              },
+              "frame": {
+                "title": "Pedidos vigentes",
+                "showTitle": true
               }
             }
           },
-          "position": { "x": 0, "y": 2, "width": 2, "height": 3 }
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 2,
+            "height": 3
+          }
         },
         {
           "widget": {
-            "name": "filas_ultimo_lote",
+            "name": "kpi_importe",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "control",
+                  "datasetName": "agregado",
                   "fields": [
-                    { "name": "max(filas_procesadas)", "expression": "MAX(`filas_procesadas`)" }
+                    {
+                      "name": "importe",
+                      "expression": "SUM(`importe_total`)"
+                    }
                   ],
                   "disaggregated": false
                 }
@@ -85,24 +113,45 @@
               "widgetType": "counter",
               "encodings": {
                 "value": {
-                  "fieldName": "max(filas_procesadas)",
-                  "displayName": "Filas de cambio leídas"
+                  "fieldName": "importe",
+                  "displayName": "Importe",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "EUR",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
                 }
+              },
+              "frame": {
+                "title": "Importe total",
+                "showTitle": true
               }
             }
           },
-          "position": { "x": 2, "y": 2, "width": 2, "height": 3 }
+          "position": {
+            "x": 2,
+            "y": 3,
+            "width": 2,
+            "height": 3
+          }
         },
         {
           "widget": {
-            "name": "pedidos_vigentes",
+            "name": "kpi_estados",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
                   "datasetName": "agregado",
                   "fields": [
-                    { "name": "sum(num_pedidos)", "expression": "SUM(`num_pedidos`)" }
+                    {
+                      "name": "estados",
+                      "expression": "COUNT(*)"
+                    }
                   ],
                   "disaggregated": false
                 }
@@ -112,23 +161,193 @@
               "version": 2,
               "widgetType": "counter",
               "encodings": {
-                "value": { "fieldName": "sum(num_pedidos)", "displayName": "Pedidos vigentes" }
+                "value": {
+                  "fieldName": "estados",
+                  "displayName": "Estados",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "title": "Estados con pedidos",
+                "showTitle": true
               }
             }
           },
-          "position": { "x": 4, "y": 2, "width": 2, "height": 3 }
+          "position": {
+            "x": 4,
+            "y": 3,
+            "width": 2,
+            "height": 3
+          }
         },
         {
           "widget": {
-            "name": "pedidos_por_estado",
+            "name": "kpi_version",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "control",
+                  "fields": [
+                    {
+                      "name": "version",
+                      "expression": "MAX(`ultima_version`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "version",
+                  "displayName": "Version",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "title": "Ultima version procesada",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_filas",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "control",
+                  "fields": [
+                    {
+                      "name": "filas",
+                      "expression": "SUM(`filas_procesadas`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "filas",
+                  "displayName": "Cambios",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "title": "Cambios propagados",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 6,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_unidades",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
                   "datasetName": "agregado",
                   "fields": [
-                    { "name": "estado", "expression": "`estado`" },
-                    { "name": "sum(num_pedidos)", "expression": "SUM(`num_pedidos`)" }
+                    {
+                      "name": "unidades",
+                      "expression": "SUM(`unidades`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "unidades",
+                  "displayName": "Unidades",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "title": "Unidades en curso",
+                "showTitle": true
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 6,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "por_estado",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "agregado",
+                  "fields": [
+                    {
+                      "name": "estado",
+                      "expression": "`estado`"
+                    },
+                    {
+                      "name": "pedidos",
+                      "expression": "SUM(`num_pedidos`)"
+                    }
                   ],
                   "disaggregated": false
                 }
@@ -138,32 +357,82 @@
               "version": 3,
               "widgetType": "bar",
               "encodings": {
-                "x": { "fieldName": "estado", "scale": { "type": "categorical" }, "displayName": "Estado" },
+                "x": {
+                  "fieldName": "estado",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Estado"
+                },
                 "y": {
-                  "fieldName": "sum(num_pedidos)",
-                  "scale": { "type": "quantitative" },
+                  "fieldName": "pedidos",
+                  "scale": {
+                    "type": "quantitative"
+                  },
                   "displayName": "Pedidos"
+                },
+                "color": {
+                  "fieldName": "estado",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "nuevo",
+                        "color": "#A78BFA"
+                      },
+                      {
+                        "value": "pagado",
+                        "color": "#7C3AED"
+                      },
+                      {
+                        "value": "enviado",
+                        "color": "#6D28D9"
+                      },
+                      {
+                        "value": "entregado",
+                        "color": "#4C1D95"
+                      },
+                      {
+                        "value": "cancelado",
+                        "color": "#B91C1C"
+                      }
+                    ]
+                  },
+                  "displayName": "Estado"
                 }
               },
               "frame": {
+                "title": "Pedidos por estado del ciclo de vida",
                 "showTitle": true,
-                "title": "Pedidos por estado — el agregado mantenido incrementalmente"
+                "description": "Cada barra es un grupo del agregado. Cuando un pedido cambia de estado, el feed obliga a recalcular dos: el que abandona y el que ocupa.",
+                "showDescription": true
               }
             }
           },
-          "position": { "x": 0, "y": 5, "width": 3, "height": 6 }
+          "position": {
+            "x": 0,
+            "y": 9,
+            "width": 6,
+            "height": 6
+          }
         },
         {
           "widget": {
-            "name": "importe_por_estado",
+            "name": "importe_estado",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
                   "datasetName": "agregado",
                   "fields": [
-                    { "name": "estado", "expression": "`estado`" },
-                    { "name": "sum(importe_total)", "expression": "SUM(`importe_total`)" }
+                    {
+                      "name": "estado",
+                      "expression": "`estado`"
+                    },
+                    {
+                      "name": "importe",
+                      "expression": "SUM(`importe_total`)"
+                    }
                   ],
                   "disaggregated": false
                 }
@@ -174,54 +443,152 @@
               "widgetType": "pie",
               "encodings": {
                 "angle": {
-                  "fieldName": "sum(importe_total)",
-                  "scale": { "type": "quantitative" },
-                  "displayName": "Importe (€)"
+                  "fieldName": "importe",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Importe"
                 },
-                "color": { "fieldName": "estado", "scale": { "type": "categorical" }, "displayName": "Estado" }
+                "color": {
+                  "fieldName": "estado",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "nuevo",
+                        "color": "#A78BFA"
+                      },
+                      {
+                        "value": "pagado",
+                        "color": "#7C3AED"
+                      },
+                      {
+                        "value": "enviado",
+                        "color": "#6D28D9"
+                      },
+                      {
+                        "value": "entregado",
+                        "color": "#4C1D95"
+                      },
+                      {
+                        "value": "cancelado",
+                        "color": "#B91C1C"
+                      }
+                    ]
+                  },
+                  "displayName": "Estado"
+                }
+              },
+              "frame": {
+                "title": "Importe por estado",
+                "showTitle": true,
+                "description": "Donde esta retenido el valor en cada momento.",
+                "showDescription": true
               }
             }
           },
-          "position": { "x": 3, "y": 5, "width": 3, "height": 6 }
+          "position": {
+            "x": 0,
+            "y": 15,
+            "width": 3,
+            "height": 6
+          }
         },
         {
           "widget": {
-            "name": "recalculo_por_estado",
+            "name": "unidades_estado",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
                   "datasetName": "agregado",
                   "fields": [
-                    { "name": "estado", "expression": "`estado`" },
-                    { "name": "num_pedidos", "expression": "`num_pedidos`" },
-                    { "name": "unidades", "expression": "`unidades`" },
-                    { "name": "importe_total", "expression": "`importe_total`" },
-                    { "name": "_recalculado_at", "expression": "`_recalculado_at`" }
+                    {
+                      "name": "estado",
+                      "expression": "`estado`"
+                    },
+                    {
+                      "name": "uds",
+                      "expression": "SUM(`unidades`)"
+                    }
                   ],
-                  "disaggregated": true
+                  "disaggregated": false
                 }
               }
             ],
             "spec": {
-              "version": 1,
-              "widgetType": "table",
+              "version": 3,
+              "widgetType": "bar",
               "encodings": {
-                "columns": [
-                  { "fieldName": "estado", "displayName": "Estado" },
-                  { "fieldName": "num_pedidos", "displayName": "Pedidos" },
-                  { "fieldName": "unidades", "displayName": "Unidades" },
-                  { "fieldName": "importe_total", "displayName": "Importe (€)" },
-                  { "fieldName": "_recalculado_at", "displayName": "Último recálculo" }
-                ]
+                "x": {
+                  "fieldName": "uds",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Unidades"
+                },
+                "y": {
+                  "fieldName": "estado",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Estado"
+                },
+                "color": {
+                  "fieldName": "estado",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "nuevo",
+                        "color": "#A78BFA"
+                      },
+                      {
+                        "value": "pagado",
+                        "color": "#7C3AED"
+                      },
+                      {
+                        "value": "enviado",
+                        "color": "#6D28D9"
+                      },
+                      {
+                        "value": "entregado",
+                        "color": "#4C1D95"
+                      },
+                      {
+                        "value": "cancelado",
+                        "color": "#B91C1C"
+                      }
+                    ]
+                  }
+                }
               },
               "frame": {
+                "title": "Unidades por estado",
                 "showTitle": true,
-                "title": "La columna de recálculo delata qué estados tocó la última ejecución"
+                "description": "Complementa al importe: un estado puede tener muchas unidades y poco valor.",
+                "showDescription": true
               }
             }
           },
-          "position": { "x": 0, "y": 11, "width": 6, "height": 6 }
+          "position": {
+            "x": 3,
+            "y": 15,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "sep",
+            "textbox_spec": "## El mecanismo incremental\n\nEl puntero es lo que hace que cada ejecucion procese solo lo nuevo. Es una tabla consultable, no un checkpoint opaco."
+          },
+          "position": {
+            "x": 0,
+            "y": 21,
+            "width": 6,
+            "height": 2
+          }
         },
         {
           "widget": {
@@ -232,10 +599,22 @@
                 "query": {
                   "datasetName": "control",
                   "fields": [
-                    { "name": "dataset", "expression": "`dataset`" },
-                    { "name": "ultima_version", "expression": "`ultima_version`" },
-                    { "name": "filas_procesadas", "expression": "`filas_procesadas`" },
-                    { "name": "_actualizado_at", "expression": "`_actualizado_at`" }
+                    {
+                      "name": "dataset",
+                      "expression": "`dataset`"
+                    },
+                    {
+                      "name": "ultima_version",
+                      "expression": "`ultima_version`"
+                    },
+                    {
+                      "name": "filas_procesadas",
+                      "expression": "`filas_procesadas`"
+                    },
+                    {
+                      "name": "_actualizado_at",
+                      "expression": "`_actualizado_at`"
+                    }
                   ],
                   "disaggregated": true
                 }
@@ -246,46 +625,192 @@
               "widgetType": "table",
               "encodings": {
                 "columns": [
-                  { "fieldName": "dataset", "displayName": "Tabla origen" },
-                  { "fieldName": "ultima_version", "displayName": "Versión procesada" },
-                  { "fieldName": "filas_procesadas", "displayName": "Filas de cambio" },
-                  { "fieldName": "_actualizado_at", "displayName": "Actualizado" }
+                  {
+                    "fieldName": "dataset",
+                    "displayName": "Tabla origen",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "type": "string",
+                    "displayAs": "string",
+                    "order": 0
+                  },
+                  {
+                    "fieldName": "ultima_version",
+                    "displayName": "Ultima version",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "type": "integer",
+                    "displayAs": "number",
+                    "order": 1
+                  },
+                  {
+                    "fieldName": "filas_procesadas",
+                    "displayName": "Cambios leidos",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "type": "integer",
+                    "displayAs": "number",
+                    "order": 2
+                  },
+                  {
+                    "fieldName": "_actualizado_at",
+                    "displayName": "Actualizado",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "type": "datetime",
+                    "displayAs": "number",
+                    "order": 3
+                  }
                 ]
               },
               "frame": {
+                "title": "Puntero del Change Data Feed",
                 "showTitle": true,
-                "title": "Puntero: hasta dónde se ha propagado el feed"
+                "description": "Si la version no avanza entre ejecuciones, no habia cambios que propagar. Si saltara, se habrian perdido.",
+                "showDescription": true
               }
             }
           },
-          "position": { "x": 0, "y": 17, "width": 6, "height": 4 }
+          "position": {
+            "x": 0,
+            "y": 23,
+            "width": 6,
+            "height": 5
+          }
         },
         {
           "widget": {
-            "name": "pedidos_por_ciudad",
+            "name": "detalle",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
                   "datasetName": "pedidos",
                   "fields": [
-                    { "name": "ciudad", "expression": "`ciudad`" },
-                    { "name": "count(*)", "expression": "COUNT(`*`)" }
+                    {
+                      "name": "pedido_id",
+                      "expression": "`pedido_id`"
+                    },
+                    {
+                      "name": "estado",
+                      "expression": "`estado`"
+                    },
+                    {
+                      "name": "ciudad",
+                      "expression": "`ciudad`"
+                    },
+                    {
+                      "name": "unidades",
+                      "expression": "`unidades`"
+                    },
+                    {
+                      "name": "importe",
+                      "expression": "`importe`"
+                    },
+                    {
+                      "name": "_updated_at",
+                      "expression": "`_updated_at`"
+                    }
                   ],
-                  "disaggregated": false
+                  "disaggregated": true
                 }
               }
             ],
             "spec": {
-              "version": 3,
-              "widgetType": "bar",
+              "version": 1,
+              "widgetType": "table",
               "encodings": {
-                "x": { "fieldName": "ciudad", "scale": { "type": "categorical" }, "displayName": "Ciudad" },
-                "y": { "fieldName": "count(*)", "scale": { "type": "quantitative" }, "displayName": "Pedidos" }
+                "columns": [
+                  {
+                    "fieldName": "pedido_id",
+                    "displayName": "Pedido",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "type": "string",
+                    "displayAs": "string",
+                    "order": 0
+                  },
+                  {
+                    "fieldName": "estado",
+                    "displayName": "Estado",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "type": "string",
+                    "displayAs": "string",
+                    "order": 1
+                  },
+                  {
+                    "fieldName": "ciudad",
+                    "displayName": "Ciudad",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "type": "string",
+                    "displayAs": "string",
+                    "order": 2
+                  },
+                  {
+                    "fieldName": "unidades",
+                    "displayName": "Unidades",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "type": "integer",
+                    "displayAs": "number",
+                    "order": 3
+                  },
+                  {
+                    "fieldName": "importe",
+                    "displayName": "Importe",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "type": "float",
+                    "displayAs": "number",
+                    "order": 4
+                  },
+                  {
+                    "fieldName": "_updated_at",
+                    "displayName": "Modificado",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "type": "datetime",
+                    "displayAs": "number",
+                    "order": 5
+                  }
+                ]
+              },
+              "frame": {
+                "title": "Pedidos en Silver",
+                "showTitle": true,
+                "description": "La tabla origen del feed.",
+                "showDescription": true
               }
             }
           },
-          "position": { "x": 0, "y": 21, "width": 6, "height": 6 }
+          "position": {
+            "x": 0,
+            "y": 28,
+            "width": 6,
+            "height": 8
+          }
         }
       ]
     }

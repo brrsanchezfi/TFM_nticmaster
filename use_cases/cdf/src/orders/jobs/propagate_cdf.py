@@ -8,7 +8,7 @@ recalcula únicamente esos.
 from __future__ import annotations
 
 from DKOps.table_governance import TableReader, TableWriter
-from orders.pipeline import build_context, contratos, parse_args
+from orders.pipeline import build_context, contratos, nombre_tabla, parse_args
 from orders.transformations.cdf_metrics import (
     estados_afectados,
     estados_vaciados,
@@ -36,7 +36,7 @@ def _ultima_procesada(spark, control: str, dataset: str) -> int | None:
     return int(filas[0]["ultima_version"]) if filas else None
 
 
-def _carga_inicial(spark, origen, agregado) -> None:
+def _carga_inicial(spark, origen, agregado, tabla_origen: str) -> None:
     """Construye el agregado completo la primera vez.
 
     El Change Data Feed sirve para propagar cambios *a partir de* un estado
@@ -48,7 +48,7 @@ def _carga_inicial(spark, origen, agregado) -> None:
     Así que el arranque en frío es un cálculo completo, y a partir de ahí todo
     es incremental.
     """
-    pedidos = spark.table(origen.full_name)
+    pedidos = spark.table(tabla_origen)
     estados = [f["estado"] for f in pedidos.select("estado").distinct().collect()]
     TableWriter(agregado).overwrite(recalcular_agregado(pedidos, estados))
     print(f"Carga inicial del agregado | estados={sorted(estados)}")
@@ -61,13 +61,13 @@ def main() -> None:
     cts = contratos(root, launcher.env)
 
     origen, agregado, control = cts["origen"], cts["agregado"], cts["control"]
-    tabla_origen = origen.full_name
+    tabla_origen = nombre_tabla(origen, launcher.env)
 
     version_actual = _version_actual(spark, tabla_origen)
-    ultima = _ultima_procesada(spark, control.full_name, tabla_origen)
+    ultima = _ultima_procesada(spark, nombre_tabla(control, launcher.env), tabla_origen)
 
     if ultima is None:
-        _carga_inicial(spark, origen, agregado)
+        _carga_inicial(spark, origen, agregado, tabla_origen)
         filas_cambio = 0
 
     elif ultima >= version_actual:

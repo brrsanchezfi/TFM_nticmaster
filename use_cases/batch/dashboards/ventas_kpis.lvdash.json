@@ -9,39 +9,244 @@
       ]
     },
     {
-      "name": "calidad",
+      "name": "serie",
+      "displayName": "Serie diaria",
+      "queryLines": [
+        "SELECT fecha,\n",
+        "       SUM(importe_total) AS importe,\n",
+        "       SUM(num_ventas)    AS ventas,\n",
+        "       SUM(unidades)      AS unidades\n",
+        "FROM gold_tfm.batch.ventas_kpis\n",
+        "GROUP BY fecha\n",
+        "ORDER BY fecha DESC"
+      ]
+    },
+    {
+      "name": "capas",
       "displayName": "Trazabilidad de capas",
       "queryLines": [
-        "SELECT 'Bronze' AS capa, COUNT(*) AS filas FROM bronze_tfm.batch.ventas_raw\n",
+        "SELECT 'Bronze' AS capa, 1 AS orden, COUNT(*) AS filas FROM bronze_tfm.batch.ventas_raw\n",
         "UNION ALL\n",
-        "SELECT 'Silver' AS capa, COUNT(*) AS filas FROM silver_tfm.batch.ventas\n",
+        "SELECT 'Silver', 2, COUNT(*) FROM silver_tfm.batch.ventas\n",
         "UNION ALL\n",
-        "SELECT 'Gold' AS capa, COUNT(*) AS filas FROM gold_tfm.batch.ventas_kpis"
+        "SELECT 'Gold', 3, COUNT(*) FROM gold_tfm.batch.ventas_kpis"
+      ]
+    },
+    {
+      "name": "dimensiones",
+      "displayName": "Catalogos del modelo",
+      "queryLines": [
+        "SELECT 'Canal' AS dimension, COUNT(*) AS filas FROM silver_tfm.batch.dim_canal\n",
+        "UNION ALL\n",
+        "SELECT 'Categoria', COUNT(*) FROM silver_tfm.batch.dim_categoria\n",
+        "UNION ALL\n",
+        "SELECT 'Ciudad', COUNT(*) FROM silver_tfm.batch.dim_ciudad\n",
+        "UNION ALL\n",
+        "SELECT 'Producto', COUNT(*) FROM silver_tfm.batch.dim_producto\n",
+        "UNION ALL\n",
+        "SELECT 'Cliente', COUNT(*) FROM silver_tfm.batch.dim_cliente"
       ]
     }
   ],
   "pages": [
     {
-      "name": "principal",
+      "name": "ventas",
       "displayName": "Ventas retail",
       "layout": [
         {
           "widget": {
-            "name": "titulo",
-            "textbox_spec": "# Ventas retail — caso de uso Batch\nKPIs diarios calculados sobre `gold_tfm.batch.ventas_kpis`. Los datos son sintéticos y se regeneran con el generador del bundle."
+            "name": "cabecera",
+            "textbox_spec": "# Ventas retail\n\n**Caso de uso 1: carga por lotes con modelo dimensional**\n\nIndicadores diarios calculados sobre `gold_tfm.batch.ventas_kpis`. El hecho y los cinco catalogos recorren la misma tuberia y se consolidan con la estrategia `full_merge` declarada en su contrato.\n\nLos datos son sinteticos y reproducibles por semilla."
           },
-          "position": { "x": 0, "y": 0, "width": 6, "height": 2 }
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 6,
+            "height": 3
+          }
         },
         {
           "widget": {
-            "name": "facturacion_total",
+            "name": "kpi_facturacion",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "serie",
+                  "fields": [
+                    {
+                      "name": "importe",
+                      "expression": "`importe`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "importe",
+                  "rowNumber": 1,
+                  "displayName": "Importe",
+                  "format": {
+                    "type": "number-currency",
+                    "currencyCode": "EUR",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "max",
+                      "places": 1
+                    }
+                  }
+                },
+                "target": {
+                  "fieldName": "importe",
+                  "rowNumber": 2,
+                  "displayName": "Dia anterior"
+                }
+              },
+              "frame": {
+                "title": "Facturacion del ultimo dia",
+                "showTitle": true,
+                "description": "La cifra menor es dia anterior.",
+                "showDescription": true
+              }
+            }
+          },
+          "position": {
+            "x": 0,
+            "y": 3,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_ventas",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "serie",
+                  "fields": [
+                    {
+                      "name": "ventas",
+                      "expression": "`ventas`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "ventas",
+                  "rowNumber": 1,
+                  "displayName": "Ventas",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    }
+                  }
+                },
+                "target": {
+                  "fieldName": "ventas",
+                  "rowNumber": 2,
+                  "displayName": "Dia anterior"
+                }
+              },
+              "frame": {
+                "title": "Ventas del ultimo dia",
+                "showTitle": true,
+                "description": "La cifra menor es dia anterior.",
+                "showDescription": true
+              }
+            }
+          },
+          "position": {
+            "x": 2,
+            "y": 3,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_unidades",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "serie",
+                  "fields": [
+                    {
+                      "name": "unidades",
+                      "expression": "`unidades`"
+                    }
+                  ],
+                  "disaggregated": true
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": {
+                  "fieldName": "unidades",
+                  "rowNumber": 1,
+                  "displayName": "Unidades",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    }
+                  }
+                },
+                "target": {
+                  "fieldName": "unidades",
+                  "rowNumber": 2,
+                  "displayName": "Dia anterior"
+                }
+              },
+              "frame": {
+                "title": "Unidades del ultimo dia",
+                "showTitle": true,
+                "description": "La cifra menor es dia anterior.",
+                "showDescription": true
+              }
+            }
+          },
+          "position": {
+            "x": 4,
+            "y": 3,
+            "width": 2,
+            "height": 3
+          }
+        },
+        {
+          "widget": {
+            "name": "kpi_ticket",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
                   "datasetName": "kpis",
                   "fields": [
-                    { "name": "sum(importe_total)", "expression": "SUM(`importe_total`)" }
+                    {
+                      "name": "ticket",
+                      "expression": "AVG(`ticket_medio`)"
+                    }
                   ],
                   "disaggregated": false
                 }
@@ -52,24 +257,46 @@
               "widgetType": "counter",
               "encodings": {
                 "value": {
-                  "fieldName": "sum(importe_total)",
-                  "displayName": "Facturación total (€)"
+                  "fieldName": "ticket",
+                  "displayName": "Ticket medio",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "none",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 2
+                    }
+                  }
                 }
+              },
+              "frame": {
+                "title": "Ticket medio",
+                "showTitle": true,
+                "description": "Importe entre numero de ventas, media de todos los dias.",
+                "showDescription": true
               }
             }
           },
-          "position": { "x": 0, "y": 2, "width": 2, "height": 3 }
+          "position": {
+            "x": 0,
+            "y": 6,
+            "width": 2,
+            "height": 3
+          }
         },
         {
           "widget": {
-            "name": "unidades_totales",
+            "name": "kpi_dias",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
                   "datasetName": "kpis",
                   "fields": [
-                    { "name": "sum(unidades)", "expression": "SUM(`unidades`)" }
+                    {
+                      "name": "dias",
+                      "expression": "COUNT(DISTINCT `fecha`)"
+                    }
                   ],
                   "disaggregated": false
                 }
@@ -79,22 +306,47 @@
               "version": 2,
               "widgetType": "counter",
               "encodings": {
-                "value": { "fieldName": "sum(unidades)", "displayName": "Unidades vendidas" }
+                "value": {
+                  "fieldName": "dias",
+                  "displayName": "Dias",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "title": "Dias con actividad",
+                "showTitle": true,
+                "description": "Ventana que cubre el generador.",
+                "showDescription": true
               }
             }
           },
-          "position": { "x": 2, "y": 2, "width": 2, "height": 3 }
+          "position": {
+            "x": 2,
+            "y": 6,
+            "width": 2,
+            "height": 3
+          }
         },
         {
           "widget": {
-            "name": "ticket_medio",
+            "name": "kpi_grupos",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
                   "datasetName": "kpis",
                   "fields": [
-                    { "name": "avg(ticket_medio)", "expression": "AVG(`ticket_medio`)" }
+                    {
+                      "name": "grupos",
+                      "expression": "COUNT(*)"
+                    }
                   ],
                   "disaggregated": false
                 }
@@ -104,23 +356,55 @@
               "version": 2,
               "widgetType": "counter",
               "encodings": {
-                "value": { "fieldName": "avg(ticket_medio)", "displayName": "Ticket medio (€)" }
+                "value": {
+                  "fieldName": "grupos",
+                  "displayName": "Agregados",
+                  "format": {
+                    "type": "number-plain",
+                    "abbreviation": "compact",
+                    "decimalPlaces": {
+                      "type": "exact",
+                      "places": 0
+                    }
+                  }
+                }
+              },
+              "frame": {
+                "title": "Filas en Gold",
+                "showTitle": true,
+                "description": "Una por fecha, categoria y canal.",
+                "showDescription": true
               }
             }
           },
-          "position": { "x": 4, "y": 2, "width": 2, "height": 3 }
+          "position": {
+            "x": 4,
+            "y": 6,
+            "width": 2,
+            "height": 3
+          }
         },
         {
           "widget": {
-            "name": "evolucion_diaria",
+            "name": "evolucion",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
                   "datasetName": "kpis",
                   "fields": [
-                    { "name": "fecha", "expression": "`fecha`" },
-                    { "name": "sum(importe_total)", "expression": "SUM(`importe_total`)" }
+                    {
+                      "name": "fecha",
+                      "expression": "`fecha`"
+                    },
+                    {
+                      "name": "importe",
+                      "expression": "SUM(`importe_total`)"
+                    },
+                    {
+                      "name": "canal",
+                      "expression": "`canal`"
+                    }
                   ],
                   "disaggregated": false
                 }
@@ -132,30 +416,76 @@
               "encodings": {
                 "x": {
                   "fieldName": "fecha",
-                  "scale": { "type": "temporal" },
+                  "scale": {
+                    "type": "temporal"
+                  },
                   "displayName": "Fecha"
                 },
                 "y": {
-                  "fieldName": "sum(importe_total)",
-                  "scale": { "type": "quantitative" },
-                  "displayName": "Importe (€)"
+                  "fieldName": "importe",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Importe"
+                },
+                "color": {
+                  "fieldName": "canal",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "online",
+                        "color": "#2C7DA0"
+                      },
+                      {
+                        "value": "tienda",
+                        "color": "#61A5C2"
+                      },
+                      {
+                        "value": "telefono",
+                        "color": "#89C2D9"
+                      },
+                      {
+                        "value": "catalogo",
+                        "color": "#A9D6E5"
+                      }
+                    ]
+                  },
+                  "displayName": "Canal"
                 }
+              },
+              "frame": {
+                "title": "Evolucion diaria por canal",
+                "showTitle": true,
+                "description": "Cada linea es un canal de venta. Las series se cruzan porque el generador reparte las ventas al azar entre canales.",
+                "showDescription": true
               }
             }
           },
-          "position": { "x": 0, "y": 5, "width": 6, "height": 6 }
+          "position": {
+            "x": 0,
+            "y": 9,
+            "width": 6,
+            "height": 6
+          }
         },
         {
           "widget": {
-            "name": "importe_por_categoria",
+            "name": "por_categoria",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
                   "datasetName": "kpis",
                   "fields": [
-                    { "name": "categoria", "expression": "`categoria`" },
-                    { "name": "sum(importe_total)", "expression": "SUM(`importe_total`)" }
+                    {
+                      "name": "categoria",
+                      "expression": "`categoria`"
+                    },
+                    {
+                      "name": "importe",
+                      "expression": "SUM(`importe_total`)"
+                    }
                   ],
                   "disaggregated": false
                 }
@@ -166,31 +496,85 @@
               "widgetType": "bar",
               "encodings": {
                 "x": {
-                  "fieldName": "categoria",
-                  "scale": { "type": "categorical" },
-                  "displayName": "Categoría"
+                  "fieldName": "importe",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Importe"
                 },
                 "y": {
-                  "fieldName": "sum(importe_total)",
-                  "scale": { "type": "quantitative" },
-                  "displayName": "Importe (€)"
+                  "fieldName": "categoria",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Categoria"
+                },
+                "color": {
+                  "fieldName": "categoria",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Hogar",
+                        "color": "#1B4965"
+                      },
+                      {
+                        "value": "Textil",
+                        "color": "#2C7DA0"
+                      },
+                      {
+                        "value": "Electronica",
+                        "color": "#468FAF"
+                      },
+                      {
+                        "value": "Deporte",
+                        "color": "#61A5C2"
+                      },
+                      {
+                        "value": "Libros",
+                        "color": "#89C2D9"
+                      },
+                      {
+                        "value": "Alimentacion",
+                        "color": "#A9D6E5"
+                      }
+                    ]
+                  },
+                  "displayName": "Categoria"
                 }
+              },
+              "frame": {
+                "title": "Facturacion por categoria",
+                "showTitle": true,
+                "description": "Barras horizontales: el nombre de la categoria se lee sin girar la cabeza.",
+                "showDescription": true
               }
             }
           },
-          "position": { "x": 0, "y": 11, "width": 3, "height": 6 }
+          "position": {
+            "x": 0,
+            "y": 15,
+            "width": 3,
+            "height": 6
+          }
         },
         {
           "widget": {
-            "name": "reparto_por_canal",
+            "name": "por_canal",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
                   "datasetName": "kpis",
                   "fields": [
-                    { "name": "canal", "expression": "`canal`" },
-                    { "name": "sum(importe_total)", "expression": "SUM(`importe_total`)" }
+                    {
+                      "name": "canal",
+                      "expression": "`canal`"
+                    },
+                    {
+                      "name": "importe",
+                      "expression": "SUM(`importe_total`)"
+                    }
                   ],
                   "disaggregated": false
                 }
@@ -201,31 +585,86 @@
               "widgetType": "pie",
               "encodings": {
                 "angle": {
-                  "fieldName": "sum(importe_total)",
-                  "scale": { "type": "quantitative" },
-                  "displayName": "Importe (€)"
+                  "fieldName": "importe",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Importe"
                 },
                 "color": {
                   "fieldName": "canal",
-                  "scale": { "type": "categorical" },
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "online",
+                        "color": "#2C7DA0"
+                      },
+                      {
+                        "value": "tienda",
+                        "color": "#61A5C2"
+                      },
+                      {
+                        "value": "telefono",
+                        "color": "#89C2D9"
+                      },
+                      {
+                        "value": "catalogo",
+                        "color": "#A9D6E5"
+                      }
+                    ]
+                  },
                   "displayName": "Canal"
                 }
+              },
+              "frame": {
+                "title": "Reparto por canal",
+                "showTitle": true,
+                "description": "Proporcion de la facturacion que aporta cada canal.",
+                "showDescription": true
               }
             }
           },
-          "position": { "x": 3, "y": 11, "width": 3, "height": 6 }
+          "position": {
+            "x": 3,
+            "y": 15,
+            "width": 3,
+            "height": 6
+          }
         },
         {
           "widget": {
-            "name": "trazabilidad_capas",
+            "name": "sep_gobierno",
+            "textbox_spec": "## Gobierno y trazabilidad\n\nComo se transforma el volumen al atravesar las capas, y que catalogos alimentan el modelo."
+          },
+          "position": {
+            "x": 0,
+            "y": 21,
+            "width": 6,
+            "height": 2
+          }
+        },
+        {
+          "widget": {
+            "name": "capas",
             "queries": [
               {
                 "name": "main_query",
                 "query": {
-                  "datasetName": "calidad",
+                  "datasetName": "capas",
                   "fields": [
-                    { "name": "capa", "expression": "`capa`" },
-                    { "name": "sum(filas)", "expression": "SUM(`filas`)" }
+                    {
+                      "name": "capa",
+                      "expression": "`capa`"
+                    },
+                    {
+                      "name": "filas",
+                      "expression": "SUM(`filas`)"
+                    },
+                    {
+                      "name": "orden",
+                      "expression": "MIN(`orden`)"
+                    }
                   ],
                   "disaggregated": false
                 }
@@ -235,20 +674,140 @@
               "version": 3,
               "widgetType": "bar",
               "encodings": {
-                "x": { "fieldName": "capa", "scale": { "type": "categorical" }, "displayName": "Capa" },
+                "x": {
+                  "fieldName": "capa",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Capa"
+                },
                 "y": {
-                  "fieldName": "sum(filas)",
-                  "scale": { "type": "quantitative" },
+                  "fieldName": "filas",
+                  "scale": {
+                    "type": "quantitative"
+                  },
                   "displayName": "Filas"
+                },
+                "color": {
+                  "fieldName": "capa",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Bronze",
+                        "color": "#B45309"
+                      },
+                      {
+                        "value": "Silver",
+                        "color": "#64748B"
+                      },
+                      {
+                        "value": "Gold",
+                        "color": "#CA8A04"
+                      }
+                    ]
+                  },
+                  "displayName": "Capa"
                 }
               },
               "frame": {
+                "title": "Filas por capa del medallon",
                 "showTitle": true,
-                "title": "Filas por capa: la caída de Bronze a Silver es la deduplicación"
+                "description": "Bronze conserva las reemisiones; Silver deja una fila por venta; Gold agrega por fecha, categoria y canal.",
+                "showDescription": true
               }
             }
           },
-          "position": { "x": 0, "y": 17, "width": 6, "height": 6 }
+          "position": {
+            "x": 0,
+            "y": 23,
+            "width": 3,
+            "height": 6
+          }
+        },
+        {
+          "widget": {
+            "name": "dims",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "dimensiones",
+                  "fields": [
+                    {
+                      "name": "dimension",
+                      "expression": "`dimension`"
+                    },
+                    {
+                      "name": "filas",
+                      "expression": "SUM(`filas`)"
+                    }
+                  ],
+                  "disaggregated": false
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "bar",
+              "encodings": {
+                "x": {
+                  "fieldName": "filas",
+                  "scale": {
+                    "type": "quantitative"
+                  },
+                  "displayName": "Filas"
+                },
+                "y": {
+                  "fieldName": "dimension",
+                  "scale": {
+                    "type": "categorical"
+                  },
+                  "displayName": "Catalogo"
+                },
+                "color": {
+                  "fieldName": "dimension",
+                  "scale": {
+                    "type": "categorical",
+                    "mappings": [
+                      {
+                        "value": "Canal",
+                        "color": "#1B4965"
+                      },
+                      {
+                        "value": "Categoria",
+                        "color": "#2C7DA0"
+                      },
+                      {
+                        "value": "Ciudad",
+                        "color": "#468FAF"
+                      },
+                      {
+                        "value": "Producto",
+                        "color": "#61A5C2"
+                      },
+                      {
+                        "value": "Cliente",
+                        "color": "#89C2D9"
+                      }
+                    ]
+                  }
+                }
+              },
+              "frame": {
+                "title": "Catalogos del modelo dimensional",
+                "showTitle": true,
+                "description": "Cinco catalogos de tamanos distintos procesados en una sola pasada.",
+                "showDescription": true
+              }
+            }
+          },
+          "position": {
+            "x": 3,
+            "y": 23,
+            "width": 3,
+            "height": 6
+          }
         },
         {
           "widget": {
@@ -259,13 +818,34 @@
                 "query": {
                   "datasetName": "kpis",
                   "fields": [
-                    { "name": "fecha", "expression": "`fecha`" },
-                    { "name": "categoria", "expression": "`categoria`" },
-                    { "name": "canal", "expression": "`canal`" },
-                    { "name": "num_ventas", "expression": "`num_ventas`" },
-                    { "name": "unidades", "expression": "`unidades`" },
-                    { "name": "importe_total", "expression": "`importe_total`" },
-                    { "name": "ticket_medio", "expression": "`ticket_medio`" }
+                    {
+                      "name": "fecha",
+                      "expression": "`fecha`"
+                    },
+                    {
+                      "name": "categoria",
+                      "expression": "`categoria`"
+                    },
+                    {
+                      "name": "canal",
+                      "expression": "`canal`"
+                    },
+                    {
+                      "name": "num_ventas",
+                      "expression": "`num_ventas`"
+                    },
+                    {
+                      "name": "unidades",
+                      "expression": "`unidades`"
+                    },
+                    {
+                      "name": "importe_total",
+                      "expression": "`importe_total`"
+                    },
+                    {
+                      "name": "ticket_medio",
+                      "expression": "`ticket_medio`"
+                    }
                   ],
                   "disaggregated": true
                 }
@@ -276,18 +856,99 @@
               "widgetType": "table",
               "encodings": {
                 "columns": [
-                  { "fieldName": "fecha", "displayName": "Fecha" },
-                  { "fieldName": "categoria", "displayName": "Categoría" },
-                  { "fieldName": "canal", "displayName": "Canal" },
-                  { "fieldName": "num_ventas", "displayName": "Ventas" },
-                  { "fieldName": "unidades", "displayName": "Unidades" },
-                  { "fieldName": "importe_total", "displayName": "Importe (€)" },
-                  { "fieldName": "ticket_medio", "displayName": "Ticket medio (€)" }
+                  {
+                    "fieldName": "fecha",
+                    "displayName": "Fecha",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "type": "date",
+                    "displayAs": "number",
+                    "order": 0
+                  },
+                  {
+                    "fieldName": "categoria",
+                    "displayName": "Categoria",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "type": "string",
+                    "displayAs": "string",
+                    "order": 1
+                  },
+                  {
+                    "fieldName": "canal",
+                    "displayName": "Canal",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "type": "string",
+                    "displayAs": "string",
+                    "order": 2
+                  },
+                  {
+                    "fieldName": "num_ventas",
+                    "displayName": "Ventas",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "type": "integer",
+                    "displayAs": "number",
+                    "order": 3
+                  },
+                  {
+                    "fieldName": "unidades",
+                    "displayName": "Unidades",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "type": "integer",
+                    "displayAs": "number",
+                    "order": 4
+                  },
+                  {
+                    "fieldName": "importe_total",
+                    "displayName": "Importe",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "type": "float",
+                    "displayAs": "number",
+                    "order": 5
+                  },
+                  {
+                    "fieldName": "ticket_medio",
+                    "displayName": "Ticket medio",
+                    "booleanValues": [
+                      "false",
+                      "true"
+                    ],
+                    "type": "float",
+                    "displayAs": "number",
+                    "order": 6
+                  }
                 ]
+              },
+              "frame": {
+                "title": "Detalle de los agregados",
+                "showTitle": true,
+                "description": "La tabla completa de Gold, por si hay que comprobar una cifra.",
+                "showDescription": true
               }
             }
           },
-          "position": { "x": 0, "y": 23, "width": 6, "height": 8 }
+          "position": {
+            "x": 0,
+            "y": 29,
+            "width": 6,
+            "height": 8
+          }
         }
       ]
     }

@@ -1,6 +1,13 @@
 {
   "EXECUTION_ENVIRONMENT": "local",
   "SPARK_APP_NAME": "retail_sales-local",
+  "SPARK_WAREHOUSE_DIR": "/tmp/retail_sales/warehouse",
+
+  "DATABRICKS_TARGET": "local",
+
+  "LOG_LEVEL": "INFO",
+  "LOG_DIR": "/tmp/retail_sales/logs",
+
   "environments": {
     "local": {
       "env": "local",
@@ -12,6 +19,7 @@
         "silver": "/tmp/retail_sales/silver",
         "gold": "/tmp/retail_sales/gold",
         "checkpoint": "/tmp/retail_sales/checkpoints",
+        "schemas": "/tmp/retail_sales/schemas",
         "ops": "/tmp/retail_sales/ops"
       }
     }

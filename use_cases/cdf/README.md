@@ -1,108 +1,223 @@
-# Caso de uso: CDF (orders)
+# Caso de uso 4: CDF: propagación incremental dentro del lago
 
-Propagación incremental de cambios a Gold usando el Change Data Feed de Delta
-Lake. A diferencia de los otros casos, aquí **no hay ingesta desde una landing
-zone**: el origen es una tabla Delta que ya vive en Silver.
+Propagación de cambios usando el **Change Data Feed** de Delta Lake. Es el
+único caso cuyo origen no está fuera de la plataforma sino dentro: una tabla
+que ya vive en Silver.
 
-El diseño y las decisiones están en
-[`docs/casos_uso/cdf.md`](../../docs/casos_uso/cdf.md). Este README es
-operativo.
+Demuestra algo que los otros tres no pueden: **el versionado del formato de
+almacenamiento es, en sí mismo, una fuente de datos**.
 
-## Qué hay aquí
+---
 
-    contracts/tables/
-      silver/pedidos.json            Tabla origen, con change_data_feed: true
-      gold/pedidos_agregado.json     Agregado por estado
-      gold/cdf_control.json          Puntero de versiones ya procesadas
-    src/orders/
-      pipeline.py                    Launcher + carga de contratos
-      jobs/simulate_changes.py       Aplica altas, updates y bajas al origen
-      jobs/propagate_cdf.py          Lee el feed y propaga solo lo afectado
-      transformations/cdf_metrics.py Lógica de propagación (funciones puras)
-      generators/generate_orders.py  Generador de pedidos y lotes de cambios
+## Arquitectura
 
-## Por qué no hay ingest_bronze ni promote_silver
+```mermaid
+flowchart LR
+    SIM[Simulador de cambios] -->|escribe| S[Silver<br/>pedidos<br/>Change Data Feed activo]
+    S -->|read_cdf<br/>v_anterior..v_actual| C{Qué estados<br/>quedaron obsoletos}
+    C -->|recalcula solo esos| G[Gold<br/>pedidos_agregado]
+    S -->|lee estado actual| G
+    G --> D[Dashboard AI/BI]
+    P[(cdf_control<br/>puntero de versión)] -.marca hasta dónde.-> C
+    C -.avanza.-> P
+```
 
-El scaffold inicial asumía la estructura Landing → Bronze → Silver → Gold de
-los otros casos. Aquí no aplica: el punto de partida es una tabla Delta, no un
-fichero. Las dos tareas del job son mutar el origen y propagar sus cambios.
+Dos tareas: `simulate_changes` -> `propagate_cdf`.
 
-## Desarrollo local (offline)
+## Qué lo hace distinto
 
-    cd use_cases/cdf
-    pip install -e ".[local]"
+Los otros tres casos ingieren desde fuera: ficheros, una API, eventos de un
+sistema origen. Este **no ingiere nada**. Los datos ya están en el lago; lo que
+cambia es que alguien los ha modificado y hay que propagar esa modificación
+aguas abajo sin recalcularlo todo.
+
+Por eso no usa el motor de ingesta sino la capa de gobierno de tablas. Es una
+decisión de criterio que el trabajo quiere mostrar: **usar la capa que
+corresponde en lugar de forzar la que no encaja**. Un contrato de ingesta
+describe un origen externo, una estrategia de consolidación y una landing zone.
+Aquí no hay nada de eso.
+
+## Cómo funciona la propagación
+
+Delta registra cada cambio como una entrada con su tipo: `insert`, `delete`, y
+para las modificaciones **dos filas**, `update_preimage` con el valor anterior
+y `update_postimage` con el nuevo.
+
+Esa pareja es la clave del caso. Un pedido que pasa de `nuevo` a `pagado` deja
+obsoletos **dos** agregados, no uno: el del estado que abandona y el del estado
+al que llega. Ignorar las preimágenes sería el error clásico, y dejaría al
+estado de origen con un pedido de más para siempre.
+
+El ciclo es:
+
+1. Leer qué versión de la tabla se procesó la última vez, del puntero
+2. Leer el feed desde la siguiente hasta la actual
+3. Deducir qué estados aparecen en esos cambios
+4. **Recalcular esos grupos desde la tabla origen**, no desde el feed
+5. Escribir el agregado y avanzar el puntero
+
+El paso 4 merece explicación. Aplicar deltas, sumar y restar importes del
+feed, también funcionaría y sería más eficiente, pero es mucho más fácil de
+descuadrar ante un reproceso. Recalcular desde el origen hace que el resultado
+sea el correcto por construcción: **el valor de un grupo es el que resulta del
+estado actual de los datos**, no el que acumule una secuencia de sumas.
+
+## El arranque en frío
+
+Sin puntero previo, el job calcula el agregado completo en lugar de leer el
+feed. No es una optimización, es una necesidad:
+
+    DELTA_CHANGE_DATA_FEED_INCOMPATIBLE_DATA_SCHEMA
+
+Leer el feed desde la versión 0 atraviesa la creación de la tabla, y Delta
+rechaza ese rango porque cruza un cambio de esquema. El feed sirve para
+propagar cambios **a partir de** un estado conocido, no para construirlo.
+
+## El puntero, y la alternativa que no se eligió
+
+El caso mantiene su propia tabla de control con la última versión procesada.
+Existe un patrón alternativo, más estándar, usando streaming estructurado:
+
+```python
+spark.readStream.option("readChangeFeed", "true").table(origen)
+     .writeStream.option("checkpointLocation", ruta)
+     .trigger(availableNow=True).toTable(destino)
+```
+
+El checkpoint gestionaría los offsets automáticamente. **No se eligió**, por
+dos razones. La primera es que el destino aquí no es un volcado de filas sino
+un agregado recalculado, así que haría falta `foreachBatch` y dentro iría
+exactamente la misma lógica: lo único que se ganaría es la gestión de offsets.
+La segunda es expositiva: `cdf_control` es una tabla consultable con un SELECT,
+mientras que un checkpoint es un directorio opaco.
+
+Dicho con honestidad: **el checkpoint sería mejor ingeniería en producción**,
+porque es menos código propio que mantener. El puntero manual se justifica aquí
+porque hace visible el mecanismo incremental, que es lo que el trabajo quiere
+demostrar. El orden de escritura está resuelto (Gold primero, puntero después),
+de modo que un fallo entre ambos reprocesa en lugar de perder cambios, y como
+el recálculo parte del origen, reprocesar es idempotente.
+
+---
+
+## Pruebas de la lógica de negocio
+
     pytest tests/unit -v
 
-Los tests no necesitan Databricks. Cubren los dos errores clásicos del
-procesamiento incremental —ignorar las preimágenes de los `UPDATE` y dejar
-huérfanos los grupos que se quedan vacíos— además del ciclo de vida del
-generador.
+Es el caso mejor cubierto de los cuatro, y sus funciones son las más
+defensivas: comprueban si el conjunto de cambios está vacío y filtran los
+nulos antes de agrupar.
 
-## Desplegar y ejecutar
+| Prueba | Qué protege |
+|---|---|
+| Sin cambios no hay estados afectados | El caso de una ejecución sin novedades |
+| Un insert afecta solo a su estado | Precisión del recálculo |
+| **Un update afecta al estado viejo y al nuevo** | La pareja preimagen/postimagen |
+| Un delete afecta a su estado | La baja |
+| Recalcula solo los estados indicados | Que el incremental sea de verdad incremental |
+| Métricas del agregado | Los valores, calculados a mano |
+| **Detecta estados que se quedan sin pedidos** | El caso que un MERGE no cubre |
+| Sin estados afectados no hay nada que vaciar | El borde del anterior |
+| El esquema coincide con el contrato | Lo declarado frente a lo producido |
+
+La tercera y la séptima son las que sostienen el caso.
+
+La **séptima** cubre un problema que no es evidente: cuando el último pedido de
+un estado se borra o cambia de estado, ese grupo desaparece del recálculo. Un
+`MERGE` nunca tocaría esa fila, así que **se quedaría congelada en Gold con un
+valor obsoleto para siempre**. Por eso el job la borra explícitamente.
+
+
+---
+
+## Ejecución en local
+
+    python3 -m venv ~/.venvs/tfm-cdf
+    ~/.venvs/tfm-cdf/bin/pip install -e ".[local]"
+    ~/.venvs/tfm-cdf/bin/pytest
+
+Hay un detalle que se descubrió al hacerlo funcionar en local: en Spark local
+no existe el catálogo de Unity Catalog, y un nombre de tres partes se rechaza
+con `REQUIRES_SINGLE_PART_NAMESPACE`. Este caso es el único que **lee tablas
+por nombre** además de escribirlas, así que la resolución le tocaba a él. Se
+añadió un ayudante que devuelve el identificador adecuado según el entorno.
+
+Es una dependencia del entorno que nadie había declarado, y solo apareció al
+intentar ejecutar el caso fuera de Databricks.
+
+<!-- Captura de la ejecución local -->
+
+---
+
+## Ejecución en Databricks
 
     databricks bundle validate -t dev
     databricks bundle deploy -t dev
+    databricks api post /api/2.2/jobs/run-now --json '{"job_id": <id>}'
 
-Primera ejecución, que siembra la tabla origen con 300 pedidos:
-
-    databricks bundle run orders_cdf_pipeline -t dev
-
-Ejecuciones siguientes: cada una aplica un lote distinto de cambios sin que
-haya que pasar nada.
-
-    databricks bundle run orders_cdf_pipeline -t dev
-    databricks bundle run orders_cdf_pipeline -t dev
-    databricks bundle run orders_cdf_pipeline -t dev
-
-Cada pasada aplica 20 altas, 30 cambios de estado y 10 bajas —60 operaciones,
-saldo neto +10 pedidos— y el puntero avanza. Encadenar varias es la forma de
-ver el mecanismo en funcionamiento.
-
-### El parámetro `lote`
-
-Controla la semilla del generador y tiene dos modos:
-
-| Valor | Comportamiento |
-|---|---|
-| `0` (por defecto) | La semilla se deriva de la versión actual de la tabla, así que **cada ejecución genera cambios distintos** |
-| Explícito (`lote=7`) | Semilla fija: el lote es siempre el mismo y la ejecución reproducible |
-
-    databricks bundle run orders_cdf_pipeline -t dev --params lote=7
-
-Repetir un lote explícito es **idempotente**: las altas se aplican con `upsert`
-sobre `pedido_id`, no con `append`. Con `append`, repetir el mismo lote
-insertaría de nuevo los mismos identificadores y duplicaría la clave primaria,
-porque los `pedido_id` se generan de forma determinista a partir de la semilla.
-
-## Cómo comprobar que es incremental
-
-Después de un par de ejecuciones:
+Para observar el mecanismo, lo interesante es ejecutarlo varias veces y mirar
+el puntero:
 
 ```sql
--- Hasta qué versión se ha propagado
-SELECT * FROM gold_tfm.cdf.cdf_control;
-
--- Qué estados se recalcularon en la última pasada y cuáles no se tocaron
-SELECT estado, num_pedidos, _recalculado_at
-FROM gold_tfm.cdf.pedidos_agregado
-ORDER BY _recalculado_at DESC;
-
--- El feed en crudo, para ver los cuatro tipos de cambio
-SELECT _change_type, COUNT(*)
-FROM table_changes('silver_tfm.cdf.pedidos', 1)
-GROUP BY _change_type;
+SELECT dataset, ultima_version, filas_procesadas, _actualizado_at
+FROM gold_tfm.cdf.cdf_control
 ```
 
-La columna `_recalculado_at` es la prueba: los estados que el feed no reportó
-conservan la marca de tiempo de una ejecución anterior, porque nadie los tocó.
+Las versiones deben avanzar **sin saltos y sin solapamientos**. Un salto
+significaría cambios perdidos; un solapamiento, cambios procesados dos veces.
 
-## Limitaciones conocidas
+<!-- Captura del job en Databricks -->
 
-- El agregado se recalcula por grupo afectado, no aplicando deltas. Es algo más
-  costoso, pero tolera reprocesos sin descuadrarse.
-- El generador lee la tabla origen entera para construir el lote de cambios.
-  Con volúmenes reales habría que muestrear en lugar de traerlo todo al driver.
-- La retención del Change Data Feed depende de `delta.logRetentionDuration`
-  (30 días por defecto). Si una ejecución se retrasa más que eso, el puntero
-  apuntaría a una versión ya purgada y habría que reconstruir el agregado
-  completo.
+<!-- Captura del dashboard AI/BI -->
+
+---
+
+## Mejoras aplicadas durante el desarrollo
+
+**Arranque en frío por cálculo completo**, en lugar de leer el feed desde la
+versión 0.
+
+**Borrado de estados vaciados**, que un MERGE por sí solo no cubre.
+
+**Altas por upsert y no por append.** Con una semilla explícita, los
+identificadores generados son siempre los mismos, así que un append duplicaría
+la clave al repetir el lote.
+
+**Resolución del nombre de tabla según el entorno**, descrita arriba.
+
+## Mejoras pendientes
+
+- **CDF no aparece en la tabla de control de operaciones.** Como no construye
+  un motor de ingesta, no instancia el registro. Es la única de las cuatro
+  ramas que no se ve en el tablero de operación, y habría que instrumentarla a
+  mano en sus entrypoints.
+- **Las propiedades del contrato no se aplican al registrar la tabla en
+  local.** El contrato declara `change_data_feed: true` y en Databricks se
+  aplica, pero en local la tabla nace sin la propiedad y `read_cdf` falla con
+  un error de Delta que habla de versiones y no de propiedades. El test lo
+  rodea con un `ALTER TABLE`, marcado explícitamente como rodeo.
+- **La validación comprueba el contrato, no la tabla.** `read_cdf` verifica que
+  el contrato declare el feed, pero no que la tabla lo tenga activado. La
+  comprobación está del lado equivocado: confía en el contrato justo donde el
+  contrato puede mentir.
+- **Sin gestión de retención del feed.** Delta conserva el histórico de cambios
+  según su configuración de retención; si el puntero se quedara muy atrás, el
+  rango solicitado podría haber expirado.
+
+---
+
+## Estructura
+
+    contracts/
+      tables/
+        silver/pedidos.json            Origen, con change_data_feed activo
+        gold/pedidos_agregado.json     Agregado por estado
+        gold/cdf_control.json          Puntero de versiones procesadas
+    dashboards/             Dashboard AI/BI de consumo
+    src/orders/
+      pipeline.py           Contratos y resolución de nombres por entorno
+      jobs/                 Entrypoints de las dos tareas
+      transformations/      Lógica de negocio: qué recalcular y qué vaciar
+      generators/           Atrezo: simula los cambios sobre los pedidos
+    tests/
+      unit/                 Lógica del incremental
