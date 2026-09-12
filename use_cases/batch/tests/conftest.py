@@ -1,4 +1,9 @@
-"""Fixtures compartidas. Spark local, sin Databricks ni Unity Catalog."""
+"""Fixtures compartidas de los tests.
+
+Spark en local, sin Databricks y sin Unity Catalog. Los tests solo ejercitan
+las funciones de negocio, que reciben y devuelven DataFrames, asi que no hace
+falta Delta ni acceso al lago.
+"""
 import pytest
 from pyspark.sql import SparkSession
 
@@ -9,11 +14,12 @@ def spark() -> SparkSession:
         SparkSession.builder
         .master("local[2]")
         .appName("retail_sales-tests")
-        # Una sola partición: los datasets de test son diminutos y así los
-        # tests tardan segundos en vez de decenas de segundos.
+        # Los datasets de prueba son diminutos: repartirlos en mas particiones
+        # solo anade coste de planificacion.
         .config("spark.sql.shuffle.partitions", "1")
         .config("spark.ui.enabled", "false")
         .getOrCreate()
     )
+    session.sparkContext.setLogLevel("ERROR")
     yield session
     session.stop()
