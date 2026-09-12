@@ -1,0 +1,54 @@
+{
+  "catalog": "{catalog.bronze}",
+  "schema": "batch",
+  "name": "dim_canal_raw",
+  "type": "EXTERNAL",
+  "format": "DELTA",
+  "location": "{path.bronze}/batch/dim_canal_raw",
+  "comment": "Canales de venta tal como llegan de la landing, sin depurar.",
+  "partitions": [
+    "_ingested_date"
+  ],
+  "columns": [
+    {
+      "name": "canal_id",
+      "type": "STRING",
+      "nullable": false,
+      "comment": "Identificador del canal. Clave del merge."
+    },
+    {
+      "name": "canal",
+      "type": "STRING",
+      "comment": "Nombre del canal tal como aparece en las ventas."
+    },
+    {
+      "name": "tipo",
+      "type": "STRING",
+      "comment": "Naturaleza del canal: digital, fisico o asistido."
+    },
+    {
+      "name": "activo",
+      "type": "BOOLEAN",
+      "comment": "Si el canal sigue operativo. Los descatalogados se conservan para que las ventas históricas sigan resolviendo."
+    },
+    {
+      "name": "_ingested_at",
+      "type": "TIMESTAMP",
+      "comment": "Momento de la ingesta en Bronze."
+    },
+    {
+      "name": "_ingested_date",
+      "type": "DATE",
+      "comment": "Día de la ingesta. Clave de la sobrescritura por partición."
+    },
+    {
+      "name": "_source_file",
+      "type": "STRING",
+      "comment": "Fichero de la landing del que procede la fila."
+    }
+  ],
+  "properties": {
+    "delta.autoOptimize.optimizeWrite": "true",
+    "proyecto": "TFM-NTIC-Master"
+  }
+}

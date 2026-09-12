@@ -1,0 +1,21 @@
+{
+  "name": "dim_categoria",
+  "description": "Bronze -> Silver. Consolida el catálogo de categoria en una fila por clave.",
+  "enabled": true,
+  "ingest_type": "batch",
+  "load_type": "full",
+  "source": {
+    "format": "delta"
+  },
+  "_comentario_estrategia": "full_merge y no append_dedup: un catálogo se corrige, no solo se reemite. Si cambia el precio de un producto o el segmento de un cliente, la fila existente debe actualizarse, no descartarse la nueva. Es la misma estrategia que ventas, por el mismo motivo.",
+  "strategy": "full_merge",
+  "merge_keys": [
+    "categoria_id"
+  ],
+  "watermark_col": "_ingested_at",
+  "metadata": {
+    "add_silver_timestamps": true
+  },
+  "source_contract": "../../tables/bronze/dim_categoria_raw.json",
+  "destination_contract": "../../tables/silver/dim_categoria.json"
+}

@@ -1,0 +1,64 @@
+{
+  "catalog": "{catalog.bronze}",
+  "schema": "batch",
+  "name": "dim_producto_raw",
+  "type": "EXTERNAL",
+  "format": "DELTA",
+  "location": "{path.bronze}/batch/dim_producto_raw",
+  "comment": "Catálogo de productos tal como llega de la landing, sin depurar.",
+  "partitions": [
+    "_ingested_date"
+  ],
+  "columns": [
+    {
+      "name": "producto_id",
+      "type": "STRING",
+      "nullable": false,
+      "comment": "Identificador del producto. Clave del merge."
+    },
+    {
+      "name": "producto",
+      "type": "STRING",
+      "comment": "Nombre comercial del producto."
+    },
+    {
+      "name": "categoria_id",
+      "type": "STRING",
+      "comment": "Referencia a dim_categoria."
+    },
+    {
+      "name": "categoria",
+      "type": "STRING",
+      "comment": "Nombre de la categoría, desnormalizado para poder consultar la dimensión sin unir."
+    },
+    {
+      "name": "precio_unitario",
+      "type": "DOUBLE",
+      "comment": "Precio de catálogo en euros. Es el de referencia, no el aplicado en cada venta."
+    },
+    {
+      "name": "activo",
+      "type": "BOOLEAN",
+      "comment": "Si el producto sigue a la venta. Los retirados se conservan para que las ventas históricas resuelvan."
+    },
+    {
+      "name": "_ingested_at",
+      "type": "TIMESTAMP",
+      "comment": "Momento de la ingesta en Bronze."
+    },
+    {
+      "name": "_ingested_date",
+      "type": "DATE",
+      "comment": "Día de la ingesta. Clave de la sobrescritura por partición."
+    },
+    {
+      "name": "_source_file",
+      "type": "STRING",
+      "comment": "Fichero de la landing del que procede la fila."
+    }
+  ],
+  "properties": {
+    "delta.autoOptimize.optimizeWrite": "true",
+    "proyecto": "TFM-NTIC-Master"
+  }
+}

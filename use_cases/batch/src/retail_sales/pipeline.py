@@ -103,4 +103,16 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
                    help="Raíz del bundle desplegado (workspace.file_path).")
     p.add_argument("--config", default=DEFAULT_CONFIG,
                    help="Ruta del config.json, relativa a la raíz del bundle.")
+    p.add_argument("--dataset", default=None,
+                   help="Nombre del dataset a procesar. Sin él, el motor "
+                        "procesa todos los contratos del directorio. Es lo que "
+                        "permite separar en el job las tareas de dimensiones "
+                        "de las del hecho, aunque el cableado sea el mismo.")
     return p.parse_known_args(argv)[0]
+
+
+# Los cinco catálogos del modelo. Se listan aquí y no en el job para que el
+# nombre de las dimensiones viva en un solo sitio.
+DIMENSIONES = [
+    "dim_canal", "dim_categoria", "dim_ciudad", "dim_producto", "dim_cliente",
+]

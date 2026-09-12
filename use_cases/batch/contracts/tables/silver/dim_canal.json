@@ -1,0 +1,61 @@
+{
+  "catalog": "{catalog.silver}",
+  "schema": "batch",
+  "name": "dim_canal",
+  "type": "EXTERNAL",
+  "format": "DELTA",
+  "location": "{path.silver}/batch/dim_canal",
+  "comment": "Canales de venta. Catálogo pequeño y estable; se recarga entero en cada ejecución y se consolida por canal_id.",
+  "columns": [
+    {
+      "name": "canal_id",
+      "type": "STRING",
+      "nullable": false,
+      "comment": "Identificador del canal. Clave del merge."
+    },
+    {
+      "name": "canal",
+      "type": "STRING",
+      "comment": "Nombre del canal tal como aparece en las ventas."
+    },
+    {
+      "name": "tipo",
+      "type": "STRING",
+      "comment": "Naturaleza del canal: digital, fisico o asistido."
+    },
+    {
+      "name": "activo",
+      "type": "BOOLEAN",
+      "comment": "Si el canal sigue operativo. Los descatalogados se conservan para que las ventas históricas sigan resolviendo."
+    },
+    {
+      "name": "_ingested_at",
+      "type": "TIMESTAMP",
+      "comment": "Momento de la ingesta en Bronze."
+    },
+    {
+      "name": "_ingested_date",
+      "type": "DATE",
+      "comment": "Día de la ingesta. Clave de la sobrescritura por partición."
+    },
+    {
+      "name": "_source_file",
+      "type": "STRING",
+      "comment": "Fichero de la landing del que procede la fila."
+    },
+    {
+      "name": "_silver_created_at",
+      "type": "TIMESTAMP",
+      "comment": "Primera vez que la fila llegó a Silver. Insert-only: el MERGE la inserta pero no la sobrescribe, así que sigue significando 'primera escritura'."
+    },
+    {
+      "name": "_silver_modified_at",
+      "type": "TIMESTAMP",
+      "comment": "Última recarga que tocó la fila. Como el catálogo es fijo, en la práctica marca la última ejecución del pipeline."
+    }
+  ],
+  "properties": {
+    "delta.autoOptimize.optimizeWrite": "true",
+    "proyecto": "TFM-NTIC-Master"
+  }
+}
