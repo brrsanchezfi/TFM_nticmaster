@@ -1,13 +1,11 @@
 # Ejecución local
 
-Los pipelines no necesitan Databricks para ejecutarse. Salvo Auto Loader, todo
-el stack (DKOps, Spark, Delta) funciona en un portátil, y eso permite probar la
-capa de ingesta sin levantar un cluster.
+Los pipelines se pueden ejecutar sin Databricks, salvo la ingesta de streaming,
+que usa Auto Loader.
 
-## Un entorno por caso de uso
+## Entornos
 
-Cada caso es un bundle independiente con su propio `pyproject.toml`, así que
-lleva su propio entorno virtual:
+Cada caso tiene su `pyproject.toml` y su entorno virtual:
 
 ```bash
 for uc in batch streaming cdc cdf; do
@@ -16,73 +14,54 @@ for uc in batch streaming cdc cdf; do
 done
 ```
 
-El extra `[local]` añade `pyspark 3.5.3`, `delta-spark 3.2.0` y `pytest`. En
-Databricks no se instala: pyspark lo aporta el runtime del cluster.
+El extra `[local]` instala `pyspark 3.5.3`, `delta-spark 3.2.0` y `pytest`. En
+Databricks no se instala, porque Spark y Delta los aporta el runtime.
 
-**Los entornos van fuera del repositorio.** En WSL, crear un venv bajo
-`/mnt/c` tarda decenas de minutos, son miles de ficheros pequeños sobre un
-montaje de Windows, frente a un par de minutos en el sistema de ficheros de
-Linux.
+En WSL, los entornos van en el sistema de ficheros de Linux y no bajo `/mnt/c`:
+sobre el montaje de Windows la instalación tarda decenas de minutos.
 
-## La configuración local
+## Configuración
 
-Cada caso tiene un `config/config.local.json` junto al de Databricks. Tres
-campos son los que hacen que funcione fuera del workspace:
+Cada caso tiene un `config/config.local.json` además del de Databricks:
 
-| Campo | Por qué |
+| Campo | Valor en local |
 |---|---|
-| `EXECUTION_ENVIRONMENT: "local"` | Levanta una SparkSession normal en vez de Databricks Connect |
-| `DATABRICKS_TARGET: "local"` | Sin `workspace_id` que detectar, el ambiente se resuelve por nombre |
-| `SPARK_WAREHOUSE_DIR` | Dónde deja Spark las tablas registradas |
+| `EXECUTION_ENVIRONMENT` | `local`: crea una SparkSession normal |
+| `DATABRICKS_TARGET` | `local`: el entorno se resuelve por nombre |
+| `SPARK_WAREHOUSE_DIR` | Carpeta donde Spark guarda las tablas |
 
-Los `paths` apuntan a `/tmp/<caso>/` en lugar de a `abfss://`, y los catálogos
-pierden el sufijo `_tfm`: en local no hay Unity Catalog, así que DKOps registra
-las tablas con nombre de dos partes (`batch.ventas`) en el catálogo de sesión y
-resuelve la ruta física dentro del warehouse.
+Las rutas apuntan a `/tmp/<caso>/` y los catálogos no llevan el sufijo `_tfm`.
+Sin Unity Catalog, las tablas se registran con nombre de dos partes, por ejemplo
+`batch.ventas`.
 
-## Qué se puede ejecutar y qué no
+## Qué se puede ejecutar
 
-| | Local | Databricks |
+| Pieza | Local | Databricks |
 |---|---|---|
-| Generadores y simuladores | si | si |
-| Ingesta a Bronze (batch, cdc) | si | si |
-| Ingesta a Bronze (streaming) | no Auto Loader | si |
-| Promoción a Silver, las tres estrategias | si | si |
-| Change Data Feed | si | si |
-| Construcción de Gold | si | si |
-| Unity Catalog, tablas externas, volúmenes | no | si |
+| Generadores y simuladores | sí | sí |
+| Ingesta a bronze en batch y CDC | sí | sí |
+| Ingesta a bronze en streaming (Auto Loader) | no | sí |
+| Promoción a silver | sí | sí |
+| Change Data Feed | sí | sí |
+| Construcción de gold | sí | sí |
+| Unity Catalog, tablas externas y volúmenes | no | sí |
 
-Auto Loader (`cloudFiles`) es propietario de Databricks y no tiene sustituto.
-El Change Data Feed, en cambio, es Delta OSS y funciona igual en ambos sitios.
-
-## Los tests
+## Pruebas
 
 ```bash
 cd use_cases/cdc
 ~/.venvs/tfm-cdc/bin/pytest
 ```
 
-Cubren la lógica de negocio: los generadores, las transformaciones que calculan
-los indicadores y la conformidad del resultado con el contrato de Gold. No
-tocan Delta ni el catálogo, así que tardan segundos.
+Prueban los generadores y la lógica de negocio. No usan Delta ni el catálogo y
+tardan segundos.
 
-Es la parte que ninguna librería resuelve por ti. La ingesta viene resuelta;
-el cálculo es propio, y es donde aparecieron los tres errores que producían
-datos incorrectos sin que nada fallara.
-
-| Caso | Tests | Qué cubren |
+| Caso | Pruebas | Qué cubren |
 |---|---|---|
 | batch | 13 | Generador de ventas y KPIs diarios |
 | streaming | 7 | Cliente de la API y agregación por ventana |
 | cdc | 7 | Simulador de eventos, cartera e histórico |
-| cdf | 9 | Qué estados recalcular y cuáles vaciar |
+| cdf | 9 | Estados a recalcular y estados que se vacían |
 
-## Lo que la ejecución local no sustituye
-
-Los fallos más caros de este proyecto **no se habrían detectado en local**:
-`EXECUTION_ENVIRONMENT` resolviéndose por `workspace_id`, los volúmenes de
-Unity Catalog sin soporte de append, `first_on_demand` en single-node, la
-pérdida de logs en `abfss://`. Todos son de entorno.
-
-La ejecución local cubre la lógica de datos. El entorno hay que probarlo en el
-entorno.
+La ejecución local no sustituye a Databricks. Los fallos de entorno recogidos en
+[estado.md](estado.md) solo aparecieron al ejecutar en el workspace.

@@ -1,0 +1,12 @@
+site_name: TFM - Plataforma lakehouse
+docs_dir: docs
+nav:
+  - Inicio: index.md
+  - Estado: estado.md
+  - Infraestructura: infraestructura.md
+  - Observabilidad: observabilidad.md
+  - Ejecución local: ejecucion-local.md
+  - Despliegue: despliegue.md
+  - Costes: costes.md
+theme:
+  name: material

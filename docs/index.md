@@ -1,29 +1,30 @@
-# TFM NTIC Master: PoC de ingeniería de datos sobre Databricks/Azure
+# Documentación técnica
 
-Implementación de los cuatro patrones habituales de ingeniería de datos
-, batch, streaming, CDC y CDF, sobre una arquitectura Lakehouse en Azure y
-Databricks, gobernada con Unity Catalog y desplegada con Databricks Asset
-Bundles.
+Documentación de la plataforma lakehouse del TFM. La descripción general está
+en el [README](../README.md) del repositorio, y cada caso de uso se documenta
+junto a su código.
 
-## Por dónde empezar
+## Casos de uso
 
-| Documento | Qué contiene |
+| Caso | Documentación |
 |---|---|
-| [Estado del proyecto](estado.md) | Qué está hecho, qué falta y qué está bloqueado |
-| [Infraestructura](infraestructura.md) | El entorno real y las decisiones de aislamiento |
-| [Caso Batch](casos_uso/batch.md) | Pipeline completo, el caso piloto |
-| [Caso CDF](casos_uso/cdf.md) | Propagación incremental con Change Data Feed |
+| Batch | [use_cases/batch](../use_cases/batch/README.md) |
+| Streaming | [use_cases/streaming](../use_cases/streaming/README.md) |
+| CDC | [use_cases/cdc](../use_cases/cdc/README.md) |
+| CDF | [use_cases/cdf](../use_cases/cdf/README.md) |
 
-## Una nota sobre el punto de partida
+## Páginas
 
-El diseño inicial asumía una suscripción de Azure vacía sobre la que
-provisionar la plataforma entera. El entorno real resultó ser un **workspace
-corporativo compartido**, con catálogos de otros equipos en el mismo metastore
-y permisos acotados a un Resource Group.
+| Página | Contenido |
+|---|---|
+| [Estado](estado.md) | Fases, cifras de la última ejecución e incidencias |
+| [Infraestructura](infraestructura.md) | Entorno compartido, Unity Catalog y tablas externas |
+| [Observabilidad](observabilidad.md) | Tabla de control de ejecuciones y logs |
+| [Ejecución local](ejecucion-local.md) | Entornos, configuración local y pruebas |
+| [Despliegue](despliegue.md) | Asset Bundles y lanzamiento de jobs |
+| [Costes](costes.md) | Consumo medido y consultas para obtenerlo |
 
-Lejos de ser un contratiempo, es un escenario más representativo del trabajo
-profesional que la suscripción en blanco: el ejercicio deja de ser "crear una
-plataforma" y pasa a ser "insertarse en una ajena sin romperla". Buena parte de
-las decisiones de este TFM (el sufijo `_tfm`, la carpeta propia en cada
-contenedor, que Terraform lea con `data` sources en vez de importar), se
-entienden desde ahí.
+La documentación se puede servir con MkDocs desde la raíz del repositorio:
+
+    pip install mkdocs-material
+    mkdocs serve
