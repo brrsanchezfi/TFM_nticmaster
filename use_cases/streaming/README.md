@@ -1,40 +1,35 @@
-# Caso de uso 2: Streaming: observaciones meteorológicas desde una API
+# Streaming: observaciones meteorológicas
 
-Ingesta incremental con Auto Loader desde una API pública, sin Kafka ni Event
-Hubs. Es **el único caso del trabajo con un origen real**: los datos vienen de
-un servicio externo que nadie controla, con sus formatos, sus fallos y su
-cadencia propia.
+Ingesta incremental con Auto Loader de las lecturas de una API pública
+(Open-Meteo) para cinco ciudades. Es el único caso con un origen real.
 
----
-
-## Arquitectura
+## Flujo
 
 ```mermaid
 flowchart LR
-    API[API meteorológica<br/>pública] --> P[poll_api<br/>cliente HTTP]
-    P --> L[Landing zone<br/>eventos/*.json]
-    L -->|Auto Loader<br/>trigger availableNow| B[Bronze<br/>eventos_raw]
-    B -->|append_dedup<br/>ciudad + hora| S[Silver<br/>eventos]
-    S --> G[Gold<br/>metricas por ventana]
-    G --> D[Dashboard AI/BI]
+    API[API Open-Meteo] --> P[poll_api] --> L[landing eventos]
+    L -->|Auto Loader, availableNow| B[bronze eventos_raw]
+    B -->|append_dedup| S[silver eventos]
+    S --> G[gold metricas]
 ```
 
-El job encadena cuatro tareas sobre un único job cluster: `poll_api` ->
-`ingest_bronze` -> `promote_silver` -> `build_gold`.
+Tareas del job: `poll_api`, `ingest_bronze`, `promote_silver` y `build_gold`,
+sobre un único job cluster.
 
-## La arquitectura medallón, aquí
+## Tablas
 
-**Bronze** acumula todo lo que la API devolvió, un fichero por consulta. Es
-deliberado: si la API cambiara el formato o publicara un valor erróneo, aquí
-queda registrado lo que llegó y cuándo.
+| Capa | Tabla | Contenido |
+|---|---|---|
+| Bronze | `bronze_tfm.streaming.eventos_raw` | Una fila por consulta a la API, particionada por día de ingesta |
+| Silver | `silver_tfm.streaming.eventos` | Una fila por ciudad y hora de observación |
+| Gold | `gold_tfm.streaming.metricas` | Temperatura media, mínima y máxima, humedad y viento por ciudad y hora |
 
-**Silver** guarda una fila por observación real, identificada por ciudad y hora
-truncada. Es donde el flujo deja de crecer cada vez que se consulta.
+Cada lectura tiene dos marcas de tiempo: `hora`, la de la observación que
+devuelve la API, y `capturado_at`, la de la consulta. La API repite la misma
+observación hasta publicar la siguiente, así que varias consultas pueden traer
+la misma lectura.
 
-**Gold** agrega por ciudad y ventana horaria: temperatura media, mínima y
-máxima, humedad y viento máximo.
-
-## La estrategia: `append_dedup`
+## Estrategia
 
 ```json
 {
@@ -43,159 +38,86 @@ máxima, humedad y viento máximo.
 }
 ```
 
-La razón es de negocio y está escrita en el propio contrato: **una observación
-meteorológica ya publicada no se corrige, solo llega repetida**. No hay nada
-que actualizar, solo que descartar.
+Una observación publicada no se corrige. `append_dedup` inserta solo las
+combinaciones de ciudad y hora que no están ya en silver, y descarta el resto.
 
-Ahí está el contraste que mejor ilustra el argumento del trabajo. Batch usa
-`full_merge` sobre los mismos mecanismos y con el mismo código, pero con el
-comportamiento opuesto: allí una reemisión **actualiza** la fila existente,
-porque un precio corregido debe prevalecer. La diferencia entre corregir y
-descartar es una decisión del dominio, y vive en una línea de configuración.
+## Auto Loader
 
-## Por qué Auto Loader en modo acotado
+La ingesta usa `trigger availableNow`: procesa los ficheros pendientes y
+termina, y el cluster se apaga al acabar el job. El `checkpoint` y los
+`schemas` de Auto Loader están en ADLS, no en `/tmp`, para que se conserven
+entre ejecuciones.
 
-```
-trigger availableNow
-```
-
-Auto Loader mantiene el registro de qué ficheros ya procesó, de modo que la
-ingesta es incremental sin que nadie lleve la cuenta. Pero en lugar de dejarlo
-como un stream perpetuo, el job usa `availableNow`: procesa lo pendiente y
-termina.
-
-Eso convierte una ingesta continua en **una ejecución acotada**, con dos
-consecuencias prácticas. El cluster se apaga al acabar, que a efectos de coste
-es la diferencia entre céntimos y una factura mensual. Y el job se puede
-orquestar como cualquier otro, con dependencias y reintentos, en vez de
-requerir supervisión de un proceso siempre vivo.
-
-El job trae un `schedule` cada 15 minutos **en pausa**. Activarlo desde la
-interfaz convierte el caso en una ingesta continua real.
-
----
+El job tiene una programación cada 15 minutos en pausa.
 
 ## Qué esperar entre ejecuciones
 
-Este es el comportamiento a observar en la demostración, y no es intuitivo:
-
 | | Bronze | Silver |
 |---|---|---|
-| Cada ejecución | **+5 filas**, una por ciudad | **+0** si la API no ha publicado nada nuevo |
-| Cuando la API renueva | +5 filas | +5 filas |
+| Consulta sin observación nueva | +5 filas | +0 |
+| Consulta con observación nueva | +5 filas | +5 filas |
 
-Bronze crece siempre porque cada consulta genera un fichero. Silver solo crece
-cuando hay observaciones nuevas: la API devuelve la misma lectura hasta que
-publica otra.
+Si una ciudad falla, `poll_api` registra el error y sigue con las demás.
 
-**Si Bronze y Silver crecen igual en cada pasada, la deduplicación no está
-funcionando.** Es la comprobación más rápida de que el caso hace lo que dice.
-
----
-
-## Pruebas de la lógica de negocio
-
-Dos bloques, ambos ejecutables sin Databricks.
+## Pruebas
 
     pytest tests/unit -v
 
-**El cliente de la API**, que se prueba con respuestas simuladas y sin red:
+7 pruebas de la agregación de gold:
 
-| Prueba | Qué protege |
+| Prueba | Qué comprueba |
 |---|---|
-| Normaliza la respuesta de la API | Que el JSON externo se traduzca al esquema propio |
-| `capturado_at` es distinto de la hora de observación | Dos tiempos que es fácil confundir |
-| **Una ciudad caída no tumba el lote** | Que un fallo parcial del origen no pierda el resto |
-| Valores ausentes no rompen la normalización | Un campo que la API omite |
+| `test_agrupa_por_ciudad_y_ventana_horaria` | Granularidad del agregado |
+| `test_metricas_de_una_ventana` | Valores calculados a mano |
+| `test_la_ventana_se_trunca_a_la_hora` | Lecturas de la misma hora en una ventana |
+| `test_esquema_coincide_con_el_contrato_gold` | Columnas y tipos del contrato |
+| `test_min_y_max_encierran_a_la_media` | Mínima, media y máxima ordenadas |
+| `test_una_hora_ilegible_no_crea_una_ventana_nula` | Horas que no se pueden convertir |
+| `test_un_dataset_vacio_no_revienta` | Silver sin datos |
 
-La tercera merece atención: si una de las cinco ciudades falla, el lote debe
-seguir con las otras cuatro. Un origen externo falla, y la plataforma no puede
-depender de que no lo haga.
+Cuando `to_timestamp` no reconocía el formato de la hora devolvía NULL, y esas
+lecturas acababan en una ventana nula en gold. Ahora se descartan.
 
-**La agregación por ventana horaria:**
+## Ejecución
 
-| Prueba | Qué protege |
-|---|---|
-| Agrupa por ciudad y ventana | La granularidad del agregado |
-| Métricas de una ventana | Los valores, calculados a mano |
-| La ventana se trunca a la hora | Que dos lecturas de la misma hora caigan juntas |
-| El esquema coincide con el contrato | Lo declarado frente a lo producido |
-| **Mínima <= media <= máxima** | El invariante de cualquier agregación |
-| **Una hora ilegible no crea una ventana nula** | Un dato de origen mal formado |
-
-La última encontró un fallo real. La hora llega como texto desde la API y
-`to_timestamp` devuelve NULL ante un formato que no reconoce; esas lecturas
-acababan agrupadas en **una ventana nula**, una fila de Gold sin hora que
-ningún tablero sabe dibujar. Ahora se descartan, porque una observación que no
-se puede situar en el tiempo no tiene sitio en una tabla de métricas horarias.
-
-
----
-
-## Ejecución en local
+En local (sin la ingesta a bronze, que necesita Auto Loader):
 
     python3 -m venv ~/.venvs/tfm-streaming
     ~/.venvs/tfm-streaming/bin/pip install -e ".[local]"
     ~/.venvs/tfm-streaming/bin/pytest
 
-Para ver qué devuelve la API de verdad:
+Consulta directa a la API:
 
     python -c "from weather_events.producer.poll_api import consultar_ciudad; \
       print(consultar_ciudad('Madrid', 40.4168, -3.7038))"
 
-<!-- Captura de la ejecución local -->
-
----
-
-## Ejecución en Databricks
+En Databricks:
 
     databricks bundle validate -t dev
     databricks bundle deploy -t dev
     databricks api post /api/2.2/jobs/run-now --json '{"job_id": <id>}'
 
-<!-- Captura del job en Databricks -->
+## Limitaciones
 
-<!-- Captura del dashboard AI/BI -->
-
----
-
-## Mejoras aplicadas durante el desarrollo
-
-**El estado de Auto Loader en almacenamiento persistente.** Estaba en `/tmp`,
-que en un cluster efímero desaparece al apagarse: cada ejecución reingería la
-landing entera y duplicaba Bronze. Las rutas `checkpoint` y `schemas` viven
-ahora en el lago.
-
-**Descarte de ventanas nulas**, descrito más arriba.
-
-**Tolerancia a fallos parciales del origen**, con su prueba.
-
-## Mejoras pendientes
-
-- **Gold se reconstruye entera** en cada ejecución. Con volúmenes reales habría
-  que pasar a actualizaciones incrementales por ventana.
-- **Auto Loader no se puede probar en local**, porque `cloudFiles` es
-  propietario. La ingesta a Bronze de este caso solo se verifica en Databricks.
-- **La API tiene límite de uso gratuito.** Con cinco ciudades cada 15 minutos
-  queda muy por debajo, pero subir la frecuencia o el número de ciudades podría
-  provocar respuestas con error.
-- **Sin control de calidad sobre el dato de origen.** Hoy se descarta lo que no
-  se puede situar en el tiempo, pero no se registra cuánto se descartó ni por
-  qué. Una tabla de rechazos sería el paso natural.
-
----
+- No usa un servicio de mensajería. El productor deja ficheros y Auto Loader
+  los procesa por lotes.
+- Auto Loader no se puede probar en local.
+- La API gratuita tiene límite de uso. Con cinco ciudades cada 15 minutos queda
+  lejos, pero más frecuencia o más ciudades podrían superarlo.
+- Las lecturas descartadas no se guardan en ninguna tabla de rechazos.
+- Gold se reconstruye entera en cada ejecución.
 
 ## Estructura
 
     contracts/
-      ingestion/bronze/     Auto Loader, trigger availableNow
-      ingestion/silver/     append_dedup por ciudad + hora
-      tables/               Esquema y gobierno de las tres tablas
-    dashboards/             Dashboard AI/BI de consumo
+      ingestion/bronze/     Auto Loader
+      ingestion/silver/     append_dedup por ciudad y hora
+      tables/               Contratos de las tres tablas
+    dashboards/             Dashboard AI/BI
+    resources/              Job y dashboard del bundle
     src/weather_events/
-      producer/             Cliente de la API, sin Spark
-      pipeline.py           Cableado de la ingesta
-      jobs/                 Entrypoints de las cuatro tareas
-      transformations/      Lógica de negocio: agregación por ventana
-    tests/
-      unit/                 Cliente de la API y agregación
+      producer/             Cliente de la API
+      pipeline.py           Carga de contratos y motor de ingesta
+      jobs/                 Entry points de las tareas
+      transformations/      Agregación por ventana
+    tests/unit/
