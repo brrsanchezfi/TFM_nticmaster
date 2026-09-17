@@ -24,11 +24,7 @@ sus pruebas y su Databricks Asset Bundle.
 
 ## Arquitectura
 
-```mermaid
-flowchart LR
-    F[Fuente] --> I[Ingesta] --> A[Almacenamiento]
-    A --> P[Procesamiento] --> S[Servicio] --> C[Consumo]
-```
+![Capas de la arquitectura](docs/img/arquitectura-capas.svg)
 
 | Capa | Implementación |
 |---|---|

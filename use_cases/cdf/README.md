@@ -6,14 +6,7 @@ cambios de una tabla que ya está en el lago.
 
 ## Flujo
 
-```mermaid
-flowchart LR
-    SIM[simulate_changes] --> S[silver pedidos, CDF activo]
-    S -->|read_cdf desde la última versión| C[estados afectados]
-    C --> G[gold pedidos_agregado]
-    P[(gold cdf_control)] -.-> C
-    C -.-> P
-```
+![Flujo del caso CDF](img/flujo.svg)
 
 Tareas del job: `simulate_changes` y `propagate_cdf`.
 

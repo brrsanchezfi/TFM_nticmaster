@@ -5,14 +5,7 @@ silver el estado actual de cada cliente. Las bajas son lógicas.
 
 ## Flujo
 
-```mermaid
-flowchart LR
-    SIM[simulate_source] --> L[landing clientes]
-    L --> B[bronze clientes_raw]
-    B -->|cdc_merge| S[silver clientes_current]
-    S --> G1[gold clientes_activos]
-    B --> G2[gold historico_cambios]
-```
+![Flujo del caso CDC](img/flujo.svg)
 
 Tareas del job: `simulate_source`, `ingest_bronze`, `promote_silver` y
 `build_gold`.

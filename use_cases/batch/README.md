@@ -5,20 +5,12 @@ el mismo pipeline que la tabla de hechos.
 
 ## Flujo
 
-```mermaid
-flowchart LR
-    G1[Generador de ventas] --> L1[landing ventas] --> B1[bronze ventas_raw]
-    G2[Catálogos maestros] --> L2[landing dim_*] --> B2[bronze dim_*_raw]
-    B1 -->|full_merge| S1[silver ventas] --> O1[gold ventas_kpis]
-    B2 -->|full_merge| S2[silver dim_*]
-```
+![Flujo del caso batch](img/flujo.svg)
 
 El job tiene dos ramas que se ejecutan en paralelo sobre el mismo cluster y se
 unen en gold:
 
-    dims_ingest_bronze  ->  dims_promote_silver  --+
-                                                   +->  build_gold
-    fact_ingest_bronze  ->  fact_promote_silver  --+
+![Tareas del job de batch](img/job.svg)
 
 ## Tablas
 

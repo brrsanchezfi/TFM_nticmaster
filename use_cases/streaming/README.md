@@ -5,13 +5,7 @@ Ingesta incremental con Auto Loader de las lecturas de una API pública
 
 ## Flujo
 
-```mermaid
-flowchart LR
-    API[API Open-Meteo] --> P[poll_api] --> L[landing eventos]
-    L -->|Auto Loader, availableNow| B[bronze eventos_raw]
-    B -->|append_dedup| S[silver eventos]
-    S --> G[gold metricas]
-```
+![Flujo del caso streaming](img/flujo.svg)
 
 Tareas del job: `poll_api`, `ingest_bronze`, `promote_silver` y `build_gold`,
 sobre un único job cluster.
